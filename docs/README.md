@@ -1,24 +1,57 @@
-# SAM.gov Search, No API Key GitHub Pages App
+# SAM.gov Search Tool, No API Key
 
-This folder contains a static GitHub Pages version of the SAM.gov Search tool.
+This folder contains the GitHub Pages front end for the hosted SAM.gov Search tool.
+
+It is now a real hosted tool architecture, not just a static fallback page:
+
+- GitHub Pages serves `docs/index.html`.
+- A Cloudflare Worker in `workers/` relays the no key SAM.gov website/internal endpoints.
+- The browser calls the Worker, so GitHub Pages is not blocked by SAM.gov CORS.
+- No `SAM_API_KEY` is used anywhere in this hosted version.
 
 ## What it does
 
-- Runs as one static `index.html` file.
-- Requires no `SAM_API_KEY`.
-- Requires no Python, Tkinter, SQLite, Playwright, or server.
-- Uses the same no key SAM.gov website endpoints as the desktop app where the browser allows it:
-  - `https://sam.gov/api/prod/sgs/v1/search/`
-  - `https://sam.gov/api/prod/opps/v2/opportunities/{notice_id}`
-  - `https://sam.gov/api/prod/opps/v3/opportunities/{notice_id}/resources`
-- Supports batch search, date windows, active status, procurement type, attachment filters, title only result filtering, sortable columns, result details, resource links, and CSV export.
-- Includes a NAICS helper checkbox. When checked, number only lines are sent with NAICS style parameters and results are client filtered by NAICS when the returned data includes a NAICS value.
+- Batch search for keywords, part numbers, solicitation numbers, notice IDs, or NAICS.
+- NAICS checkbox: number only lines such as `336414`, `336415`, and `336419` are searched as NAICS filters when checked.
+- Date windows with normal range or all date ranges from `01/01/2018` to today.
+- Status and procurement type filtering.
+- Optional attachment enrichment using the SAM.gov internal resources endpoint.
+- Attachment count and total MB filters.
+- Title only local result filter, including hide terms.
+- Sortable result table.
+- Details panel with SAM.gov links, resource links, attachment names, and descriptions when available.
+- CSV export of the currently displayed rows.
+
+## Hosted pieces
+
+### Front end
+
+```text
+docs/index.html
+```
+
+Expected GitHub Pages URL after merge and Pages setup:
+
+```text
+https://deerspotter.github.io/samgovsearch/
+```
+
+### Worker proxy
+
+```text
+workers/samgov-proxy-worker.js
+workers/wrangler.toml
+```
+
+Default expected Worker URL:
+
+```text
+https://samgovsearch.spotterdeer.workers.dev
+```
+
+The front end has a **Proxy Worker URL** field. If the Worker URL changes, paste the new URL and click **Save URL**.
 
 ## GitHub Pages setup
-
-Use either Pages source option.
-
-### Simple branch based setup
 
 1. Open the repository on GitHub.
 2. Go to **Settings**.
@@ -28,24 +61,51 @@ Use either Pages source option.
 6. Set **Folder** to `/docs`.
 7. Save.
 
-The page should publish as:
+## Cloudflare Worker setup
 
-```text
-https://deerspotter.github.io/samgovsearch/
+The Worker does not require a SAM.gov key. It only relays public SAM.gov website/internal endpoint responses.
+
+### Option A: deploy from your computer
+
+```powershell
+cd workers
+npm create cloudflare@latest -- --existing-script samgovsearch
+npx wrangler deploy
 ```
 
-### GitHub Actions setup
+Or, if Wrangler is already available:
 
-This static app does not need a build step. A Pages workflow is optional. The branch based `/docs` setting is enough.
+```powershell
+cd workers
+npx wrangler deploy
+```
 
-## Important browser limit
+### Option B: deploy through GitHub Actions
 
-GitHub Pages is static browser JavaScript. If SAM.gov does not allow cross origin browser reads from `github.io`, the live table cannot read the internal no key endpoint. In that case, the page creates SAM.gov search links for each batch term.
+The repo includes:
 
-That is a browser CORS limit. It is different from an API key problem.
+```text
+.github/workflows/deploy-samgov-worker.yml
+```
 
-If live browser search is blocked and you still want this hosted tool to fetch results, the next step is a very small no key proxy such as a Cloudflare Worker. The worker would not need a SAM.gov API key. It would only relay allowed public SAM.gov website endpoint responses to the GitHub Pages front end.
+Add these repository secrets:
 
-## Attachment limits
+```text
+CLOUDFLARE_API_TOKEN
+CLOUDFLARE_ACCOUNT_ID
+```
 
-Public resource links can be opened from the details panel when SAM.gov returns them. Controlled attachments still require normal SAM.gov access and authorization.
+Then run the workflow manually, or merge to `main` with changes under `workers/`.
+
+## SAM.gov endpoints relayed by the Worker
+
+```text
+https://sam.gov/api/prod/sgs/v1/search/
+https://sam.gov/api/prod/opps/v2/opportunities/{notice_id}
+https://sam.gov/api/prod/opps/v3/opportunities/{notice_id}/resources
+https://sam.gov/api/prod/opps/v3/opportunities/resources/files/{resource_id}/download
+```
+
+## Limits
+
+Controlled attachments still require normal SAM.gov authorization. This tool does not bypass SAM.gov sign in, controlled document access, or any SAM.gov permission rules.
