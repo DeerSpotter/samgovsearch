@@ -6,6 +6,10 @@ from typing import Optional
 
 import samgovsearch as base
 
+# SAM.gov rejects date windows that are exactly one calendar year apart.
+# Keep every generated request safely under that boundary.
+base.MAX_POSTED_DATE_WINDOW_DAYS = 364
+
 
 class SamGovSearchAllStatusApp(base.SamGovSearchApp):
     """Small extension layer that adds an all-status checkbox to the base GUI."""
