@@ -11,11 +11,11 @@ echo =======================
 set "PYTHON_CMD="
 
 where py >nul 2>nul
-if %ERRORLEVEL%==0 (
+if not errorlevel 1 (
     set "PYTHON_CMD=py -3"
 ) else (
     where python >nul 2>nul
-    if %ERRORLEVEL%==0 (
+    if not errorlevel 1 (
         set "PYTHON_CMD=python"
     )
 )
