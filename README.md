@@ -19,6 +19,7 @@ No API key is stored in the app, written to disk, or entered into the GUI.
   - solicitation number search for values that look like part numbers or solicitation numbers
   - notice ID search for long hexadecimal notice IDs
 - Optional checkbox: search all date ranges.
+- Optional checkbox: search all statuses.
 - Optional filter: only show opportunities with attachments.
 - When attachment filtering is enabled, extra fields appear:
   - minimum attachment count
@@ -48,6 +49,7 @@ run_samgovsearch.bat
 The BAT launcher will:
 
 - start from the repo folder automatically
+- launch `samgovsearch_all_status.py` when it exists, otherwise fall back to `samgovsearch.py`
 - use `py -3` first, then fall back to `python`
 - warn you if Python is missing
 - warn you if `SAM_API_KEY` is not set
@@ -64,7 +66,7 @@ Close and reopen Command Prompt after running `setx`.
 Then run:
 
 ```bat
-python samgovsearch.py
+python samgovsearch_all_status.py
 ```
 
 Or use the launcher:
@@ -79,7 +81,7 @@ For the current PowerShell window only:
 
 ```powershell
 $env:SAM_API_KEY = "paste_your_sam_api_key_here"
-python .\samgovsearch.py
+python .\samgovsearch_all_status.py
 ```
 
 For your Windows user profile permanently:
@@ -116,6 +118,26 @@ When this is checked, the app disables the Posted From and Posted To fields and 
 ```
 
 It does that by splitting the search into 1-year SAM.gov API windows. This avoids invalid no-date requests and avoids the SAM.gov 1-year posted date range limit.
+
+## Status behavior
+
+The Status dropdown defaults to:
+
+```text
+active
+```
+
+To include all SAM.gov statuses, check:
+
+```text
+Search all statuses
+```
+
+When this is checked, the app disables the Status dropdown and does not send the `status` filter to SAM.gov. SAM.gov documents the status parameter as optional and lists these accepted values:
+
+```text
+active, inactive, archived, cancelled, deleted
+```
 
 ## Batch dedupe behavior
 
