@@ -7,9 +7,11 @@ title SAM.gov Search
 echo.
 echo SAM.gov Search Launcher
 echo =======================
+echo Launches the unified UI with Website/Internal, Official API, and Hybrid modes.
+echo.
 
 set "PYTHON_CMD="
-set "APP_SCRIPT=samgovsearch_cached.py"
+set "APP_SCRIPT=samgovsearch_unified.py"
 
 where py >nul 2>nul
 if not errorlevel 1 (
@@ -31,35 +33,19 @@ if not defined PYTHON_CMD (
 )
 
 if not exist "%APP_SCRIPT%" (
-    set "APP_SCRIPT=samgovsearch_all_status.py"
-)
-
-if not exist "%APP_SCRIPT%" (
-    set "APP_SCRIPT=samgovsearch.py"
-)
-
-if not exist "%APP_SCRIPT%" (
-    echo ERROR: SAM.gov search Python app was not found next to this BAT file.
-    echo Expected samgovsearch_cached.py, samgovsearch_all_status.py, or samgovsearch.py.
+    echo ERROR: %APP_SCRIPT% was not found next to this BAT file.
+    echo Run git pull, then try again.
     echo.
     pause
     exit /b 1
 )
 
 if not defined SAM_API_KEY (
-    echo SAM_API_KEY is not set in this Command Prompt environment.
+    echo SAM_API_KEY is not set. That is OK for Website/Internal Search mode.
+    echo Official API mode and Hybrid official enrichment will need SAM_API_KEY.
     echo.
-    echo Paste your SAM.gov API key for this launch only, or press Enter to quit.
-    set /p "SAM_API_KEY=SAM_API_KEY: "
-    if not defined SAM_API_KEY (
-        echo.
-        echo No API key entered. Exiting.
-        pause
-        exit /b 1
-    )
 )
 
-echo.
 echo Starting SAM.gov Search using %APP_SCRIPT%...
 %PYTHON_CMD% "%APP_SCRIPT%"
 
