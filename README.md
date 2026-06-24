@@ -59,7 +59,8 @@ If `SAM_API_KEY` is not set, Hybrid mode can still run as internal-only enrichme
 ## Features
 
 - One launcher: `run_samgovsearch.bat`.
-- One desktop UI: `samgovsearch_app.py`.
+- One desktop UI: `samgovsearch_responsive.py`.
+- Responsive layout: the left options panel scrolls and the right results area resizes when the window is not maximized.
 - Batch search one keyword, part number, solicitation number, or notice ID per line.
 - Duplicate batch entries are removed before searching.
 - Search source selector:
@@ -98,11 +99,21 @@ run_samgovsearch.bat
 The BAT launcher will:
 
 - start from the repo folder automatically
-- launch `samgovsearch_app.py`
+- launch `samgovsearch_responsive.py`
 - use `py -3` first, then fall back to `python`
 - warn you if Python is missing
 - allow no-key searching in Website/Internal mode
 - let you add `SAM_API_KEY` from Settings inside the app
+
+## Responsive window behavior
+
+The current launcher opens the responsive UI. It is designed to work when the window is not maximized:
+
+- The left search/settings panel has its own vertical scrollbar.
+- The results table expands and shrinks with the window.
+- The results table keeps horizontal and vertical scrollbars for wide result data.
+- The split between options and results can be adjusted by dragging the divider.
+- The minimum window size is reduced so controls remain reachable on smaller screens.
 
 ## SAM_API_KEY setup from the app
 
@@ -145,7 +156,7 @@ For the current PowerShell window only:
 
 ```powershell
 $env:SAM_API_KEY = "paste_your_sam_api_key_here"
-python .\samgovsearch_app.py
+python .\samgovsearch_responsive.py
 ```
 
 For your Windows user profile permanently:
@@ -218,59 +229,3 @@ setx SAMGOVSEARCH_CACHE_MAX_AGE_DAYS "30"
 ```
 
 Use `0` or leave it unset to keep cached data indefinitely.
-
-## Date behavior
-
-The GUI defaults to:
-
-- Posted From: today minus 364 days
-- Posted To: today
-
-The app intentionally stays below the exact one-calendar-year boundary because SAM.gov can reject a request such as `06/24/2025` through `06/24/2026` with a date range error.
-
-To search wider than one year, check:
-
-```text
-Search all date ranges
-```
-
-When this is checked, the app disables the Posted From and Posted To fields and searches from:
-
-```text
-01/01/2018 through today
-```
-
-It splits the run into 364-day windows.
-
-## Status behavior
-
-The Status dropdown defaults to:
-
-```text
-active
-```
-
-To include all statuses, check:
-
-```text
-Search all statuses
-```
-
-When checked, the app disables the Status dropdown. In Official API mode it omits the `status` filter. In Website/Internal mode it omits the website/internal active filter.
-
-## Attachment filtering
-
-When **Only show opportunities with attachments** is checked:
-
-- opportunities with fewer than the minimum attachment count are removed
-- blank minimum attachment count defaults to `1`
-- blank minimum total size defaults to `0 MB`
-- if minimum total size is greater than `0`, the app compares the known total attachment size in MB
-
-In Website/Internal and Hybrid modes, attachment metadata comes from:
-
-```text
-https://sam.gov/api/prod/opps/v3/opportunities/{notice_id}/resources
-```
-
-This is useful because the resources endpoint can expose attachment names, resource IDs, and sizes.
