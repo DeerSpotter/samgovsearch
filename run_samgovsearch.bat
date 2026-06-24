@@ -12,11 +12,12 @@ echo Hybrid modes, settings, sortable columns, advanced result filtering,
 echo exclusion filtering, SQLite local index, cache manager, enrichment view,
 echo retry settings, fast prompt-free attachment ZIP downloads, optional initial
 echo search match validation, live wildcard attachment filtering, grouped search
-echo checkboxes, and blank/disabled fields for checkbox overrides.
+echo checkboxes, blank/disabled fields for checkbox overrides, and predefined
+echo interested NAICS searching.
 echo.
 
 set "PYTHON_CMD="
-set "APP_SCRIPT=samgovsearch_pro_checkbox_field_states.py"
+set "APP_SCRIPT=samgovsearch_pro_predefined_naics.py"
 
 where py >nul 2>nul
 if not errorlevel 1 (
