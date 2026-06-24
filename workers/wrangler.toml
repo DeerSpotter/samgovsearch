@@ -2,3 +2,5 @@ name = "samgovsearch"
 main = "samgov-proxy-worker.js"
 compatibility_date = "2025-08-01"
 workers_dev = true
+
+# Touch this file to trigger the GitHub Actions Worker deploy from the repo.
