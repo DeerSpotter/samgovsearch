@@ -12,7 +12,7 @@ Double click:
 run_samgovsearch_browser.bat
 ```
 
-The BAT launches `samgovsearch_browser_hybrid.py` when present. It falls back to `samgovsearch_browser.py` if the hybrid file is missing.
+The BAT launches `samgovsearch_browser_hybrid_cached.py` when present. It falls back to `samgovsearch_browser_hybrid.py`, then `samgovsearch_browser.py` if the cached hybrid file is missing.
 
 The first time, install the browser dependencies:
 
@@ -48,7 +48,7 @@ Workflow:
 3. Review the visible results table.
 4. Click **Hybrid API Enrich Results**.
 
-Hybrid enrichment uses `SAM_API_KEY`, but only after browser results are extracted. It attempts one API request per extracted result when a notice ID and posted date are available. That is much cheaper than searching every keyword across every date window through the API.
+Hybrid enrichment uses the local API cache first. It checks previously stored exact query responses and the per-notice index before using `SAM_API_KEY` for an uncached extracted result.
 
 The enrichment adds these fields to the table and CSV when available:
 
@@ -60,6 +60,22 @@ The enrichment adds these fields to the table and CSV when available:
 - API Attachment Status
 
 If the browser result does not expose a notice ID, that row is skipped. If the browser result does not expose a posted date, the tool uses a safe 364-day fallback window because the SAM.gov Opportunities API requires `postedFrom` and `postedTo`.
+
+## Local API cache and index
+
+Browser hybrid mode shares the same cache as API mode:
+
+```text
+%LOCALAPPDATA%\SAMGovSearch\ApiCache
+```
+
+The cache stores exact API query results and a per-notice index. When hybrid enrichment sees a notice ID that already exists in the index, it can enrich that row without making a new SAM.gov API request.
+
+To force a different cache location, set:
+
+```bat
+setx SAMGOVSEARCH_CACHE_DIR "C:\\Path\\To\\SamGovSearchCache"
+```
 
 ## Attachment filtering limitation
 
