@@ -48,17 +48,82 @@ class SamGovSearchProInitialMatchApp(SamGovSearchProDownloadFolderApp):
         if not tokens:
             return True
 
-        try:
-            values: List[str] = self._result_filter_values(result)
-        except Exception:
-            row = result.as_csv_row() if hasattr(result, "as_csv_row") else {}
-            values = [str(value or "") for value in row.values()]
-
+        values = self._initial_match_values(result)
         haystack = " | ".join(value for value in values if value)
         if not haystack.strip():
+            # Do not hide sparse API records just because the local cache has not
+            # enriched them yet. The user can still apply local filters afterward.
             return True
 
         return all(self._token_matches(token, values, haystack) for token in tokens)
+
+    def _initial_match_values(self, result: Any) -> List[str]:
+        """Return only SAM.gov-provided text for initial search validation.
+
+        Do not use _result_filter_values here. That method intentionally includes
+        the app's local Keyword column so local filters can search/export table
+        metadata. For initial validation, including the Keyword column causes every
+        result to match the user's entered search term, even when the opportunity
+        itself does not contain that term.
+        """
+        values: List[str] = []
+
+        for attr in [
+            "title",
+            "solicitation_number",
+            "notice_id",
+            "notice_type",
+            "posted_date",
+            "response_deadline",
+            "active",
+            "organization",
+            "naics_code",
+            "classification_code",
+            "ui_link",
+        ]:
+            value = getattr(result, attr, "")
+            if value:
+                values.append(str(value))
+
+        for link in list(getattr(result, "resource_links", []) or []):
+            if link:
+                values.append(str(link))
+
+        try:
+            values.extend(self._attachment_names_for_result(result))
+        except Exception:
+            pass
+
+        try:
+            record = self._cache_record_for_notice(getattr(result, "notice_id", ""))
+            item = record.get("item") if isinstance(record, dict) else {}
+            if isinstance(item, dict):
+                for key in [
+                    "title",
+                    "description",
+                    "solicitationNumber",
+                    "noticeId",
+                    "type",
+                    "fullParentPathName",
+                    "department",
+                    "subTier",
+                    "office",
+                    "naicsCode",
+                    "classificationCode",
+                ]:
+                    value = item.get(key)
+                    if value:
+                        values.append(str(value))
+
+                resource_links = item.get("resourceLinks")
+                if isinstance(resource_links, list):
+                    values.extend(str(link) for link in resource_links if link)
+                elif isinstance(resource_links, str) and resource_links.strip():
+                    values.append(resource_links.strip())
+        except Exception:
+            pass
+
+        return values
 
 
 def main() -> None:
