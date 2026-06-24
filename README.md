@@ -70,7 +70,9 @@ If `SAM_API_KEY` is not set, Hybrid mode can still run as internal-only enrichme
 - Settings button to paste and save `SAM_API_KEY` to the Windows user environment.
 - Settings button links to SAM.gov account details and the official SAM.gov API docs.
 - Click result column headers to sort ascending or descending.
-- Download known public attachments for the selected result row.
+- Download attachments for the selected result row.
+  - Tries SAM.gov's website-style **Download All Attachments/Links** ZIP method first.
+  - Falls back to individual public attachment downloads when the ZIP method is unavailable.
 - Optional checkbox: search all date ranges.
 - Optional checkbox: search all statuses.
 - Optional filter: only show opportunities with attachments.
@@ -86,7 +88,17 @@ If `SAM_API_KEY` is not set, Hybrid mode can still run as internal-only enrichme
 
 - Python 3.10 or newer recommended.
 - Tkinter. This is included with the standard Windows Python installer.
-- No third-party Python packages are required for the unified Tkinter app.
+- No third-party Python packages are required for searching, sorting, caching, CSV export, or individual attachment downloads.
+- Optional for the SAM.gov website-style ZIP download method: Playwright.
+
+Install the optional ZIP download dependency with:
+
+```bat
+py -3 -m pip install -r requirements-website-download.txt
+py -3 -m playwright install chromium
+```
+
+The app still launches without Playwright. If Playwright is missing, the download button will skip the website ZIP method and fall back to individual attachment links when available.
 
 ## Setup and launch
 
@@ -185,15 +197,33 @@ Select one result row and click:
 Download Attachments for Selected Result
 ```
 
-The app will ask for a folder, create a subfolder using the solicitation number, notice ID, or title, then download every known attachment link for that result.
+The app will ask for a folder and create a subfolder using the solicitation number, notice ID, or title.
 
-Website/Internal and Hybrid modes usually provide the best attachment metadata because they call:
+The preferred method is now the same user-visible flow SAM.gov uses:
+
+1. Open the selected SAM.gov opportunity page in a headless Chromium session.
+2. Click **Download All Attachments/Links**.
+3. Wait for SAM.gov to generate the short-lived ZIP download link.
+4. Download that ZIP immediately into the selected folder.
+
+This method requires the optional Playwright dependency:
+
+```bat
+py -3 -m pip install -r requirements-website-download.txt
+py -3 -m playwright install chromium
+```
+
+If Playwright is not installed, if SAM.gov does not generate a ZIP link, or if the selected result cannot be opened by notice ID, the app falls back to downloading individual known public attachment links.
+
+Website/Internal and Hybrid modes usually provide the best individual attachment metadata because they call:
 
 ```text
 https://sam.gov/api/prod/opps/v3/opportunities/{notice_id}/resources
 ```
 
-That endpoint can expose attachment names, resource IDs, and sizes. Official API mode can still download from `resourceLinks` when those links are present. If `SAM_API_KEY` is set, the downloader will also retry SAM.gov links with the key appended when needed.
+That endpoint can expose attachment names, resource IDs, and sizes. Official API mode can still download from `resourceLinks` when those links are present. If `SAM_API_KEY` is set, the individual downloader will also retry SAM.gov links with the key appended when needed.
+
+Controlled attachments still require normal SAM.gov authorization. The app does not bypass SAM.gov sign-in or controlled-access rules.
 
 Downloaded filenames are sanitized for Windows and duplicate names are automatically numbered.
 
