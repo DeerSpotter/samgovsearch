@@ -35,6 +35,22 @@ No API key is stored in the app, written to disk, or entered into the GUI.
 
 ## Setup
 
+### Easiest Windows launch
+
+Double click:
+
+```text
+run_samgovsearch.bat
+```
+
+The BAT launcher will:
+
+- start from the repo folder automatically
+- use `py -3` first, then fall back to `python`
+- warn you if Python is missing
+- warn you if `SAM_API_KEY` is not set
+- let you paste a SAM.gov API key for that launch only
+
 ### Windows Command Prompt
 
 ```bat
@@ -47,6 +63,12 @@ Then run:
 
 ```bat
 python samgovsearch.py
+```
+
+Or use the launcher:
+
+```bat
+run_samgovsearch.bat
 ```
 
 ### Windows PowerShell
