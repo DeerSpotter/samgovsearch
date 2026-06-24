@@ -624,7 +624,14 @@ class UnifiedSamGovSearchApp(cached.CachedSamGovSearchApp):
 
                     if notice_id:
                         self.seen_notice_ids.add(notice_id)
-                    self._api_cache.store_notice_item(enriched, source_label="internal-hybrid" if hybrid else "internal-search")
+                    # _enrich_internal_item already stores internal notice data.
+                    # If Hybrid official enrichment is active, do not overwrite the
+                    # official API cache record with an internal-hybrid source label.
+                    if not (hybrid and official_client is not None):
+                        self._api_cache.store_notice_item(
+                            enriched,
+                            source_label="internal-hybrid" if hybrid else "internal-search",
+                        )
                     self.queue.put(("result", result))
 
     def _internal_notice_lookup(
