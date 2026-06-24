@@ -7,17 +7,11 @@ title SAM.gov Search
 echo.
 echo SAM.gov Search Launcher
 echo =======================
-echo Launches the unified responsive UI with Website/Internal, Official API,
-echo Hybrid modes, settings, sortable columns, advanced result filtering,
-echo exclusion filtering, SQLite local index, cache manager, enrichment view,
-echo retry settings, fast prompt-free attachment ZIP downloads, optional initial
-echo search match validation, live wildcard attachment filtering, grouped search
-echo checkboxes, blank/disabled fields for checkbox overrides, and predefined
-echo interested NAICS searching.
+echo Starting SAM.gov Search with predefined NAICS support.
 echo.
 
 set "PYTHON_CMD="
-set "APP_SCRIPT=samgovsearch_pro_predefined_naics.py"
+set "APP_SCRIPT=samgovsearch_pro_predefined_naics_fixed.py"
 
 where py >nul 2>nul
 if not errorlevel 1 (
@@ -31,8 +25,7 @@ if not errorlevel 1 (
 
 if not defined PYTHON_CMD (
     echo ERROR: Python was not found.
-    echo Install Python 3.10 or newer from https://www.python.org/downloads/
-    echo Make sure "Add python.exe to PATH" is checked during install.
+    echo Install Python 3.10 or newer and make sure it is on PATH.
     echo.
     pause
     exit /b 1
@@ -44,12 +37,6 @@ if not exist "%APP_SCRIPT%" (
     echo.
     pause
     exit /b 1
-)
-
-if not defined SAM_API_KEY (
-    echo SAM_API_KEY is not set. That is OK for Website/Internal Search mode.
-    echo You can add it from Settings inside the app for Official API mode and Hybrid enrichment.
-    echo.
 )
 
 echo Starting SAM.gov Search using %APP_SCRIPT%...
