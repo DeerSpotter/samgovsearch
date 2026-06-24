@@ -13,7 +13,7 @@ echo cache manager, enrichment view, retry settings, and attachment downloads.
 echo.
 
 set "PYTHON_CMD="
-set "APP_SCRIPT=samgovsearch_pro.py"
+set "APP_SCRIPT=samgovsearch_pro_final.py"
 
 where py >nul 2>nul
 if not errorlevel 1 (
