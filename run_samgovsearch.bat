@@ -7,11 +7,12 @@ title SAM.gov Search
 echo.
 echo SAM.gov Search Launcher
 echo =======================
-echo Launches the unified UI with Website/Internal, Official API, and Hybrid modes.
+echo Launches the unified UI with Website/Internal, Official API, Hybrid modes,
+echo settings, and sortable result columns.
 echo.
 
 set "PYTHON_CMD="
-set "APP_SCRIPT=samgovsearch_unified.py"
+set "APP_SCRIPT=samgovsearch_app.py"
 
 where py >nul 2>nul
 if not errorlevel 1 (
@@ -42,7 +43,7 @@ if not exist "%APP_SCRIPT%" (
 
 if not defined SAM_API_KEY (
     echo SAM_API_KEY is not set. That is OK for Website/Internal Search mode.
-    echo Official API mode and Hybrid official enrichment will need SAM_API_KEY.
+    echo You can add it from Settings inside the app for Official API mode and Hybrid enrichment.
     echo.
 )
 
