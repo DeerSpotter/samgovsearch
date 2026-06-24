@@ -189,6 +189,11 @@ class SamGovSearchFilterCacheApp(responsive.ResponsiveSamGovSearchApp):
         self.tree.insert("", "end", values=self._result_row_values(result))
 
     def _add_result(self, result: Any) -> None:
+        # A new search clears self.results before worker results arrive. Reset
+        # the displayed-result mapping on the first incoming row so filtered
+        # selection/download logic never points at rows from a prior search.
+        if not self.results:
+            self._visible_results = []
         self.results.append(result)
         if self._result_matches_filter(result, self._active_result_filter):
             self._visible_results.append(result)
