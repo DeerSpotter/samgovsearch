@@ -11,11 +11,12 @@ echo Launches the unified responsive UI with Website/Internal, Official API,
 echo Hybrid modes, settings, sortable columns, advanced result filtering,
 echo exclusion filtering, SQLite local index, cache manager, enrichment view,
 echo retry settings, fast prompt-free attachment ZIP downloads, optional initial
-echo search match validation, and live wildcard attachment filtering.
+echo search match validation, live wildcard attachment filtering, and grouped
+echo search checkboxes directly after the filters.
 echo.
 
 set "PYTHON_CMD="
-set "APP_SCRIPT=samgovsearch_pro_initial_match_toggle.py"
+set "APP_SCRIPT=samgovsearch_pro_checkbox_grouped.py"
 
 where py >nul 2>nul
 if not errorlevel 1 (
