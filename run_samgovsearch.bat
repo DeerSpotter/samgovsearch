@@ -7,12 +7,12 @@ title SAM.gov Search
 echo.
 echo SAM.gov Search Launcher
 echo =======================
-echo Launches the unified UI with Website/Internal, Official API, Hybrid modes,
-echo settings, and sortable result columns.
+echo Launches the unified responsive UI with Website/Internal, Official API,
+echo Hybrid modes, settings, sortable result columns, and attachment downloads.
 echo.
 
 set "PYTHON_CMD="
-set "APP_SCRIPT=samgovsearch_app.py"
+set "APP_SCRIPT=samgovsearch_responsive.py"
 
 where py >nul 2>nul
 if not errorlevel 1 (
