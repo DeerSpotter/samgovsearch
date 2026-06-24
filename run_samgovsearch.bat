@@ -7,11 +7,11 @@ title SAM.gov Search
 echo.
 echo SAM.gov Search Launcher
 echo =======================
-echo Starting SAM.gov Search with predefined NAICS support.
+echo Starting SAM.gov Search with number-only Census-validated NAICS support.
 echo.
 
 set "PYTHON_CMD="
-set "APP_SCRIPT=samgovsearch_pro_predefined_naics_fixed.py"
+set "APP_SCRIPT=samgovsearch_pro_naics_validated.py"
 
 where py >nul 2>nul
 if not errorlevel 1 (
