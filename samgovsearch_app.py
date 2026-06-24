@@ -431,7 +431,9 @@ class SamGovSearchApp(unified.UnifiedSamGovSearchApp):
             page = context.new_page()
             try:
                 page.goto(ui_link, wait_until="domcontentloaded", timeout=WEBSITE_ZIP_TIMEOUT_MS)
-                self._click_download_all_attachments(page, PlaywrightTimeoutError, zip_target)
+                immediate_path = self._click_download_all_attachments(page, PlaywrightTimeoutError, zip_target)
+                if immediate_path is not None:
+                    return immediate_path
                 href = self._wait_for_generated_zip_href(page, PlaywrightTimeoutError)
                 return self._download_generated_zip_with_playwright(page, href, zip_target)
             finally:
