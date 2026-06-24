@@ -1,25 +1,33 @@
 from __future__ import annotations
 
+import mimetypes
 import os
+from pathlib import Path
+import re
 import subprocess
 import sys
+import urllib.error
+import urllib.parse
+import urllib.request
 import webbrowser
-from datetime import date
-from typing import Any, Callable, Dict
+from typing import Any, Dict, List, Optional
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import filedialog, messagebox, ttk
 
 import samgovsearch_unified as unified
 
 SAM_ACCOUNT_DETAILS_URL = "https://sam.gov/profile/details"
 SAM_API_DOCS_URL = "https://open.gsa.gov/api/get-opportunities-public-api/"
+DOWNLOAD_TIMEOUT_SECONDS = 180
+DOWNLOAD_CHUNK_BYTES = 1024 * 1024
 
 
 class SamGovSearchApp(unified.UnifiedSamGovSearchApp):
     """Final user-facing SAM.gov Search UI.
 
-    Adds user settings for SAM_API_KEY and click-to-sort result columns while
-    keeping the unified internal/API/hybrid search behavior in one app.
+    Adds user settings for SAM_API_KEY, click-to-sort result columns, and
+    selected-row attachment downloads while keeping the unified
+    internal/API/hybrid search behavior in one app.
     """
 
     def _build_ui(self) -> None:
@@ -28,6 +36,7 @@ class SamGovSearchApp(unified.UnifiedSamGovSearchApp):
         self._last_sorted_column = ""
         self._install_sortable_headings()
         self._add_settings_button()
+        self._add_download_button()
 
     def _add_settings_button(self) -> None:
         left_panel = self.grid_slaves(row=0, column=0)[0]
@@ -44,6 +53,28 @@ class SamGovSearchApp(unified.UnifiedSamGovSearchApp):
         ttk.Label(
             settings_frame,
             text="Use this to paste a SAM.gov API key into the user environment variable.",
+            wraplength=360,
+        ).grid(row=1, column=0, sticky="w", pady=(5, 0))
+
+    def _add_download_button(self) -> None:
+        left_panel = self.grid_slaves(row=0, column=0)[0]
+        download_frame = ttk.LabelFrame(left_panel, text="Attachments", padding=8)
+        download_frame.grid(row=13, column=0, sticky="ew", pady=(8, 0))
+        download_frame.columnconfigure(0, weight=1)
+
+        self.download_attachments_button = ttk.Button(
+            download_frame,
+            text="Download Attachments for Selected Result",
+            command=self.download_selected_attachments,
+        )
+        self.download_attachments_button.grid(row=0, column=0, sticky="ew")
+
+        ttk.Label(
+            download_frame,
+            text=(
+                "Select one result row, then download its known public attachments. "
+                "Internal and Hybrid modes usually include attachment names and sizes."
+            ),
             wraplength=360,
         ).grid(row=1, column=0, sticky="w", pady=(5, 0))
 
@@ -228,6 +259,10 @@ class SamGovSearchApp(unified.UnifiedSamGovSearchApp):
     def _text_key(value: Any) -> str:
         return str(value or "").casefold()
 
+    def _add_result(self, result: Any) -> None:
+        super()._add_result(result)
+        self._update_download_button_state()
+
     def _rebuild_result_tree(self) -> None:
         for row_id in self.tree.get_children():
             self.tree.delete(row_id)
@@ -252,6 +287,231 @@ class SamGovSearchApp(unified.UnifiedSamGovSearchApp):
             )
 
         self.export_button.configure(state="normal" if self.results else "disabled")
+        self._update_download_button_state()
+
+    def _update_download_button_state(self) -> None:
+        button = getattr(self, "download_attachments_button", None)
+        if button is not None:
+            button.configure(state="normal" if self.results else "disabled")
+
+    def _selected_result(self) -> Optional[Any]:
+        selected = self.tree.selection()
+        if not selected:
+            return None
+        index = self.tree.index(selected[0])
+        if index < 0 or index >= len(self.results):
+            return None
+        return self.results[index]
+
+    def download_selected_attachments(self) -> None:
+        result = self._selected_result()
+        if result is None:
+            messagebox.showinfo("No Result Selected", "Select one result row before downloading attachments.")
+            return
+
+        links = list(getattr(result, "resource_links", []) or [])
+        if not links:
+            messagebox.showinfo(
+                "No Attachments Found",
+                "The selected result does not have known downloadable attachment links.\n\n"
+                "Website/Internal or Hybrid mode usually gives the best attachment metadata.",
+            )
+            return
+
+        folder = filedialog.askdirectory(title="Choose folder for SAM.gov attachments")
+        if not folder:
+            return
+
+        target_folder = Path(folder) / self._safe_folder_name(
+            result.solicitation_number or result.notice_id or result.title or "samgov_opportunity"
+        )
+        target_folder.mkdir(parents=True, exist_ok=True)
+
+        attachment_names = self._attachment_names_for_result(result)
+        saved_paths: List[Path] = []
+        failures: List[str] = []
+
+        self.status_var_text.set(f"Downloading {len(links)} attachment(s)...")
+        self.update_idletasks()
+
+        for index, url in enumerate(links, start=1):
+            name = self._attachment_name_for_index(attachment_names, index, url)
+            target_path = self._unique_path(target_folder / self._safe_filename(name))
+
+            try:
+                final_path = self._download_attachment_url(
+                    url=url,
+                    target_path=target_path,
+                    referer=getattr(result, "ui_link", "") or "https://sam.gov/",
+                )
+                saved_paths.append(final_path)
+                self._log(f"Downloaded attachment {index}/{len(links)}: {final_path}")
+            except Exception as exc:
+                message = f"{name}: {exc}"
+                failures.append(message)
+                self._log(f"Attachment download failed: {message}")
+
+        if saved_paths:
+            try:
+                os.startfile(str(target_folder))  # type: ignore[attr-defined]
+            except Exception:
+                pass
+
+        summary = f"Downloaded {len(saved_paths)} of {len(links)} attachment(s).\n\nFolder:\n{target_folder}"
+        if failures:
+            summary += "\n\nFailures:\n" + "\n".join(failures[:8])
+            if len(failures) > 8:
+                summary += f"\n...and {len(failures) - 8} more."
+            messagebox.showwarning("Download Complete With Errors", summary)
+        else:
+            messagebox.showinfo("Download Complete", summary)
+
+        self.status_var_text.set(f"Downloaded {len(saved_paths)} attachment(s) for selected result.")
+
+    def _attachment_names_for_result(self, result: Any) -> List[str]:
+        notice_id = getattr(result, "notice_id", "")
+        cached_item = self._cached_notice_item(notice_id) if notice_id else None
+        if isinstance(cached_item, dict):
+            names = cached_item.get("samgovsearchAttachmentNames")
+            if isinstance(names, list):
+                return [str(name) for name in names if str(name).strip()]
+        return []
+
+    def _attachment_name_for_index(self, attachment_names: List[str], index: int, url: str) -> str:
+        if index - 1 < len(attachment_names):
+            name = attachment_names[index - 1].strip()
+            if name:
+                return name
+
+        parsed = urllib.parse.urlparse(url)
+        path_name = Path(urllib.parse.unquote(parsed.path)).name
+        if path_name and path_name.lower() not in {"download", "files"}:
+            return path_name
+
+        return f"attachment_{index:03d}.bin"
+
+    def _download_attachment_url(self, url: str, target_path: Path, referer: str) -> Path:
+        api_key = os.environ.get("SAM_API_KEY", "").strip()
+        candidates = [url]
+        if api_key:
+            keyed = unified.base.append_api_key_if_missing(url, api_key)
+            if keyed != url:
+                candidates.append(keyed)
+
+        last_error: Optional[Exception] = None
+        for candidate in candidates:
+            try:
+                return self._download_candidate_url(candidate, target_path, referer)
+            except Exception as exc:
+                last_error = exc
+
+        raise RuntimeError(str(last_error) if last_error else "Download failed.")
+
+    def _download_candidate_url(self, url: str, target_path: Path, referer: str) -> Path:
+        request = urllib.request.Request(
+            url,
+            headers={
+                "Accept": "application/octet-stream,*/*",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Referer": referer or "https://sam.gov/",
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/120.0.0.0 Safari/537.36"
+                ),
+            },
+        )
+
+        try:
+            with urllib.request.urlopen(request, timeout=DOWNLOAD_TIMEOUT_SECONDS) as response:
+                final_path = self._maybe_apply_response_filename(target_path, response)
+                final_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(final_path, "wb") as handle:
+                    while True:
+                        chunk = response.read(DOWNLOAD_CHUNK_BYTES)
+                        if not chunk:
+                            break
+                        handle.write(chunk)
+                return final_path
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode("utf-8", errors="replace")
+            raise RuntimeError(f"HTTP {exc.code}: {body[:250]}") from exc
+        except urllib.error.URLError as exc:
+            raise RuntimeError(f"Connection error: {exc}") from exc
+
+    def _maybe_apply_response_filename(self, target_path: Path, response: Any) -> Path:
+        header_name = self._filename_from_content_disposition(response.headers.get("Content-Disposition", ""))
+        if header_name:
+            return self._unique_path(target_path.with_name(self._safe_filename(header_name)))
+
+        if target_path.suffix:
+            return target_path
+
+        content_type = str(response.headers.get("Content-Type", "")).split(";", 1)[0].strip().lower()
+        extension = mimetypes.guess_extension(content_type) if content_type else None
+        if extension:
+            return self._unique_path(target_path.with_suffix(extension))
+
+        return target_path
+
+    @staticmethod
+    def _filename_from_content_disposition(value: str) -> str:
+        if not value:
+            return ""
+
+        match = re.search(r"filename\*=UTF-8''([^;]+)", value, flags=re.IGNORECASE)
+        if match:
+            return urllib.parse.unquote(match.group(1).strip().strip('"'))
+
+        match = re.search(r'filename="?([^";]+)"?', value, flags=re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
+
+        return ""
+
+    @classmethod
+    def _safe_folder_name(cls, value: str) -> str:
+        return cls._safe_filename(value, max_length=90)
+
+    @staticmethod
+    def _safe_filename(value: str, max_length: int = 160) -> str:
+        name = str(value or "").strip()
+        name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", name)
+        name = re.sub(r"\s+", " ", name).strip(" .")
+        if not name:
+            name = "attachment"
+
+        reserved = {
+            "CON", "PRN", "AUX", "NUL",
+            "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+            "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+        }
+        stem = name.split(".", 1)[0].upper()
+        if stem in reserved:
+            name = f"_{name}"
+
+        if len(name) > max_length:
+            path = Path(name)
+            suffix = path.suffix
+            stem_text = path.stem[: max(1, max_length - len(suffix) - 1)]
+            name = f"{stem_text}{suffix}" if suffix else name[:max_length]
+
+        return name
+
+    @staticmethod
+    def _unique_path(path: Path) -> Path:
+        if not path.exists():
+            return path
+
+        stem = path.stem
+        suffix = path.suffix
+        parent = path.parent
+        counter = 2
+        while True:
+            candidate = parent / f"{stem} ({counter}){suffix}"
+            if not candidate.exists():
+                return candidate
+            counter += 1
 
 
 def main() -> None:
