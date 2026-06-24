@@ -2,10 +2,10 @@
 
 This folder contains the GitHub Pages front end for the hosted SAM.gov Search tool.
 
-It is now a real hosted tool architecture, not just a static fallback page:
+It is a real hosted tool architecture, not just a static fallback page:
 
-- GitHub Pages serves `docs/index.html`.
-- A Cloudflare Worker in `workers/` relays the no key SAM.gov website/internal endpoints.
+- GitHub Pages serves `docs/index.html` from this repo.
+- A Cloudflare Worker relays the no key SAM.gov website/internal endpoints.
 - The browser calls the Worker, so GitHub Pages is not blocked by SAM.gov CORS.
 - No `SAM_API_KEY` is used anywhere in this hosted version.
 
@@ -30,7 +30,7 @@ It is now a real hosted tool architecture, not just a static fallback page:
 docs/index.html
 ```
 
-Expected GitHub Pages URL after merge and Pages setup:
+Expected GitHub Pages URL:
 
 ```text
 https://deerspotter.github.io/samgovsearch/
@@ -38,9 +38,18 @@ https://deerspotter.github.io/samgovsearch/
 
 ### Worker proxy
 
+The active Worker is deployed from the OSIRIS repo because that repo already has the Cloudflare Worker path working:
+
 ```text
-workers/samgov-proxy-worker.js
-workers/wrangler.toml
+https://github.com/DeerSpotter/osiris-v2/tree/master/workers/samgov
+```
+
+Worker files in `osiris-v2`:
+
+```text
+workers/samgov/samgov-proxy-worker.js
+workers/samgov/wrangler.toml
+.github/workflows/deploy-samgov-worker.yml
 ```
 
 Default expected Worker URL:
@@ -53,7 +62,7 @@ The front end has a **Proxy Worker URL** field. If the Worker URL changes, paste
 
 ## GitHub Pages setup
 
-1. Open the repository on GitHub.
+1. Open this repository on GitHub.
 2. Go to **Settings**.
 3. Go to **Pages**.
 4. Set **Source** to **Deploy from a branch**.
@@ -61,41 +70,28 @@ The front end has a **Proxy Worker URL** field. If the Worker URL changes, paste
 6. Set **Folder** to `/docs`.
 7. Save.
 
-## Cloudflare Worker setup
+## Worker deployment
+
+Deploy the Worker from the OSIRIS repo:
+
+```text
+https://github.com/DeerSpotter/osiris-v2/actions/workflows/deploy-samgov-worker.yml
+```
+
+Run:
+
+```text
+Deploy SAM.gov Worker
+```
 
 The Worker does not require a SAM.gov key. It only relays public SAM.gov website/internal endpoint responses.
 
-### Option A: deploy from your computer
-
-```powershell
-cd workers
-npm create cloudflare@latest -- --existing-script samgovsearch
-npx wrangler deploy
-```
-
-Or, if Wrangler is already available:
-
-```powershell
-cd workers
-npx wrangler deploy
-```
-
-### Option B: deploy through GitHub Actions
-
-The repo includes:
-
-```text
-.github/workflows/deploy-samgov-worker.yml
-```
-
-Add these repository secrets:
+If the deploy fails with `CLOUDFLARE_API_TOKEN` missing, add or repair these secrets in the `osiris-v2` repo:
 
 ```text
 CLOUDFLARE_API_TOKEN
 CLOUDFLARE_ACCOUNT_ID
 ```
-
-Then run the workflow manually, or merge to `main` with changes under `workers/`.
 
 ## SAM.gov endpoints relayed by the Worker
 
