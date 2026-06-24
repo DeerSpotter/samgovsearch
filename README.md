@@ -20,6 +20,7 @@ No API key is stored in the app, written to disk, or entered into the GUI.
   - notice ID search for long hexadecimal notice IDs
 - Optional checkbox: search all date ranges.
 - Optional checkbox: search all statuses.
+- Local API cache/index reuses prior API responses before spending new SAM.gov API requests.
 - All-date searches warn before large API runs and throttle requests to reduce 429 quota/rate-limit errors.
 - Optional filter: only show opportunities with attachments.
 - When attachment filtering is enabled, extra fields appear:
@@ -35,7 +36,7 @@ No API key is stored in the app, written to disk, or entered into the GUI.
 
 - Python 3.10 or newer recommended.
 - Tkinter. This is included with the standard Windows Python installer.
-- No third-party Python packages are required.
+- No third-party Python packages are required for API mode.
 
 ## Setup
 
@@ -50,7 +51,7 @@ run_samgovsearch.bat
 The BAT launcher will:
 
 - start from the repo folder automatically
-- launch `samgovsearch_all_status.py` when it exists, otherwise fall back to `samgovsearch.py`
+- launch `samgovsearch_cached.py` when it exists, otherwise fall back to `samgovsearch_all_status.py`, then `samgovsearch.py`
 - use `py -3` first, then fall back to `python`
 - warn you if Python is missing
 - warn you if `SAM_API_KEY` is not set
@@ -67,7 +68,7 @@ Close and reopen Command Prompt after running `setx`.
 Then run:
 
 ```bat
-python samgovsearch_all_status.py
+python samgovsearch_cached.py
 ```
 
 Or use the launcher:
@@ -82,7 +83,7 @@ For the current PowerShell window only:
 
 ```powershell
 $env:SAM_API_KEY = "paste_your_sam_api_key_here"
-python .\samgovsearch_all_status.py
+python .\samgovsearch_cached.py
 ```
 
 For your Windows user profile permanently:
@@ -92,6 +93,39 @@ For your Windows user profile permanently:
 ```
 
 Close and reopen PowerShell after setting it permanently.
+
+## Local API cache and index
+
+API mode stores successful SAM.gov API responses locally so later searches can reuse the same data before spending another API request.
+
+The default cache folder is:
+
+```text
+%LOCALAPPDATA%\SAMGovSearch\ApiCache
+```
+
+The cache stores:
+
+- `queries\` exact API query responses keyed by query parameters
+- `notices\` one file per SAM.gov notice ID found in API results
+- `index.jsonl` append-only cache activity log
+- `README_DO_NOT_DELETE.txt` marker file
+
+This folder is intentionally placed in user-local app data instead of the Windows temp folder because temp folders are designed to be cleaned or deleted. No user-owned folder can be made truly undeletable, but the app recreates the cache folder if it is missing. If the cache is deleted, only the cached data is lost.
+
+To force a different cache location, set:
+
+```bat
+setx SAMGOVSEARCH_CACHE_DIR "C:\\Path\\To\\SamGovSearchCache"
+```
+
+By default cached API data does not expire. To set a max cache age, set days with:
+
+```bat
+setx SAMGOVSEARCH_CACHE_MAX_AGE_DAYS "30"
+```
+
+Use `0` or leave it unset to keep cached data indefinitely.
 
 ## Date behavior
 
@@ -128,6 +162,7 @@ It does that by splitting the search into 364-day SAM.gov API windows. This avoi
 
 To reduce accidental quota usage, the launcher app now:
 
+- checks the local API cache before calling SAM.gov
 - estimates the minimum number of API search requests before all-date searches
 - asks for confirmation before larger all-date runs
 - waits 2 seconds between all-date SAM.gov search requests
