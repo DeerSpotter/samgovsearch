@@ -8,6 +8,12 @@ The app uses **one UI** and **one launcher**:
 run_samgovsearch.bat
 ```
 
+The launcher opens:
+
+```text
+samgovsearch_pro.py
+```
+
 Inside the UI, choose the search source:
 
 1. **Website/Internal Search - no API key**
@@ -59,7 +65,7 @@ If `SAM_API_KEY` is not set, Hybrid mode can still run as internal-only enrichme
 ## Features
 
 - One launcher: `run_samgovsearch.bat`.
-- One desktop UI: `samgovsearch_filter_cache.py`.
+- One desktop UI: `samgovsearch_pro.py`.
 - Responsive layout: the left options panel scrolls and the right results area resizes when the window is not maximized.
 - Batch search one keyword, part number, solicitation number, or notice ID per line.
 - Duplicate batch entries are removed before searching.
@@ -71,6 +77,11 @@ If `SAM_API_KEY` is not set, Hybrid mode can still run as internal-only enrichme
 - Settings button links to SAM.gov account details and the official SAM.gov API docs.
 - Search within the currently loaded results without running another SAM.gov search.
 - Search within results supports simple text matching plus `*` and `?` wildcards.
+- Attachment name filtering for loaded results and cached SQLite searches.
+- SQLite local index for fast local searching of previously cached SAM.gov results.
+- Cache manager for cache folder, SQLite rebuild, CSV export, and cache cleanup.
+- Selected result enrichment/details panel with attachment names, cache source, links, and description when available.
+- Tunable retry/rate-limit settings.
 - Optional checkbox: ignore cached searches for the current run while still writing fresh successful responses back to cache.
 - Click result column headers to sort ascending or descending.
 - Download attachments for the selected result row.
@@ -91,7 +102,8 @@ If `SAM_API_KEY` is not set, Hybrid mode can still run as internal-only enrichme
 
 - Python 3.10 or newer recommended.
 - Tkinter. This is included with the standard Windows Python installer.
-- No third-party Python packages are required for searching, sorting, caching, CSV export, result filtering, or individual attachment downloads.
+- SQLite. This is included with standard Python.
+- No third-party Python packages are required for searching, sorting, caching, SQLite indexing, CSV export, result filtering, or individual attachment downloads.
 - Optional for the SAM.gov website-style ZIP download method: Playwright.
 
 Install the optional ZIP download dependency with:
@@ -114,7 +126,7 @@ run_samgovsearch.bat
 The BAT launcher will:
 
 - start from the repo folder automatically
-- launch `samgovsearch_filter_cache.py`
+- launch `samgovsearch_pro.py`
 - use `py -3` first, then fall back to `python`
 - warn you if Python is missing
 - allow no-key searching in Website/Internal mode
@@ -171,7 +183,7 @@ For the current PowerShell window only:
 
 ```powershell
 $env:SAM_API_KEY = "paste_your_sam_api_key_here"
-python .\samgovsearch_filter_cache.py
+python .\samgovsearch_pro.py
 ```
 
 For your Windows user profile permanently:
@@ -181,6 +193,24 @@ For your Windows user profile permanently:
 ```
 
 Close and reopen PowerShell after setting it permanently.
+
+## SQLite local index
+
+The pro UI stores a local SQLite index beside the existing JSON cache:
+
+```text
+%LOCALAPPDATA%\SAMGovSearch\ApiCache\samgov_index.sqlite
+```
+
+The JSON cache is still the canonical cache. The SQLite database is a fast searchable index built from cached notice JSON files.
+
+Use the **SQLite Local Index** section for:
+
+- **Search Cached Results**: searches local indexed notices only. It does not call SAM.gov.
+- **Rebuild Index**: rebuilds SQLite from the JSON notice cache.
+- **Attachment Name Filter**: filters by attachment names, such as `drawing`, `parts list`, `*.xlsx`, or `*CDRL*`.
+
+Cached-result search checks title, solicitation number, notice ID, type, organization, NAICS, PSC, attachment names, and description where cached.
 
 ## Search within loaded results
 
@@ -209,9 +239,100 @@ raytheon
 W31P4Q*
 ```
 
-If you type no wildcard characters, the app treats the value as a contains search. If you use `*` or `?`, the app treats it as a wildcard pattern.
+If you type no wildcard characters, the app treats the value as a contains search. If you use `*` or `?`, the app treats the value as a wildcard pattern.
 
 When filtered, CSV export exports the displayed result rows, not the hidden rows.
+
+## Attachment name filtering
+
+Use **Attachment Name Filter** in the SQLite Local Index section.
+
+It applies to loaded results and cached SQLite searches. It checks cached attachment names and resource links.
+
+Examples:
+
+```text
+drawing
+```
+
+```text
+*parts list*
+```
+
+```text
+*.xlsx
+```
+
+Clearing the attachment name filter restores the currently loaded result set without re-searching SAM.gov.
+
+## Selected result enrichment view
+
+The bottom details panel updates when you select a result row.
+
+It shows available details such as:
+
+- title
+- solicitation number
+- notice ID
+- type
+- posted date
+- response deadline
+- organization
+- NAICS / PSC
+- attachment count and total size
+- attachment names
+- resource links
+- cache source and cache file
+- description when cached
+
+This panel is read-only and does not call SAM.gov by itself.
+
+## Cache manager
+
+Click **Cache Manager** to manage local cache files.
+
+It shows:
+
+- JSON cache root
+- number of cached query responses
+- number of cached notice records
+- SQLite index path
+- number of indexed notices
+- number of indexed attachment references
+- last SQLite rebuild time
+
+Actions:
+
+- **Open Folder**
+- **Rebuild Index**
+- **Export Index CSV**
+- **Clear Query Cache**
+- **Clear SQLite Index**
+
+Clearing the SQLite index does not delete the JSON notice cache. Rebuild Index can recreate SQLite from the JSON notice cache.
+
+## Search behavior settings
+
+Click **Search Settings** to adjust:
+
+- Enable SQLite local index
+- Automatically index new results as they arrive
+- Rebuild index automatically if empty before local cache search
+- Retry transient timeout/server/network errors
+- Retry attempts
+- Retry backoff seconds
+- Normal Official API delay seconds
+- All-date Official API delay seconds
+- Website/Internal delay seconds
+- Hybrid Official Enrich delay seconds
+
+Quota/rate-limit errors are not retried because retrying those usually wastes requests. The app stops or falls back to cached/internal data when SAM.gov returns quota or rate-limit errors.
+
+Settings are saved beside the cache:
+
+```text
+%LOCALAPPDATA%\SAMGovSearch\ApiCache\samgovsearch_settings.json
+```
 
 ## Sorting results
 
@@ -258,40 +379,3 @@ https://sam.gov/api/prod/opps/v3/opportunities/{notice_id}/resources
 That endpoint can expose attachment names, resource IDs, and sizes. Official API mode can still download from `resourceLinks` when those links are present. If `SAM_API_KEY` is set, the individual downloader will also retry SAM.gov links with the key appended when needed.
 
 Controlled attachments still require normal SAM.gov authorization. The app does not bypass SAM.gov sign-in or controlled-access rules.
-
-Downloaded filenames are sanitized for Windows and duplicate names are automatically numbered.
-
-## Local cache and index
-
-The app stores successful official API responses and internal search results locally so later searches can reuse the same data before spending another request.
-
-The default cache folder is:
-
-```text
-%LOCALAPPDATA%\SAMGovSearch\ApiCache
-```
-
-The cache stores:
-
-- `queries\` exact query responses keyed by query parameters
-- `notices\` one file per SAM.gov notice ID found in results
-- `index.jsonl` append-only cache activity log
-- `README_DO_NOT_DELETE.txt` marker file
-
-The **Ignore cached searches for this run** checkbox skips reading existing cached query and notice records for that run. It still writes fresh successful responses back to the cache, so later runs can reuse the refreshed data.
-
-This folder is intentionally placed in user-local app data instead of the Windows temp folder because temp folders are designed to be cleaned or deleted. No user-owned folder can be made truly undeletable, but the app recreates the cache folder if it is missing. If the cache is deleted, only the cached data is lost.
-
-To force a different cache location, set:
-
-```bat
-setx SAMGOVSEARCH_CACHE_DIR "C:\Path\To\SamGovSearchCache"
-```
-
-By default cached data does not expire. To set a max cache age, set days with:
-
-```bat
-setx SAMGOVSEARCH_CACHE_MAX_AGE_DAYS "30"
-```
-
-Use `0` or leave it unset to keep cached data indefinitely.
