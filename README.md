@@ -11,7 +11,7 @@ run_samgovsearch.bat
 The launcher opens:
 
 ```text
-samgovsearch_pro_exclusions.py
+samgovsearch_pro_download_folder.py
 ```
 
 Inside the UI, choose the search source:
@@ -65,7 +65,7 @@ If `SAM_API_KEY` is not set, Hybrid mode can still run as internal-only enrichme
 ## Features
 
 - One launcher: `run_samgovsearch.bat`.
-- One desktop UI: `samgovsearch_pro_exclusions.py`.
+- One desktop UI: `samgovsearch_pro_download_folder.py`.
 - Responsive layout: the left options panel scrolls and the right results area resizes when the window is not maximized.
 - Batch search one keyword, part number, solicitation number, or notice ID per line.
 - Duplicate batch entries are removed before searching.
@@ -87,6 +87,8 @@ If `SAM_API_KEY` is not set, Hybrid mode can still run as internal-only enrichme
 - Optional checkbox: ignore cached searches for the current run while still writing fresh successful responses back to cache.
 - Click result column headers to sort ascending or descending.
 - Download attachments for the selected result row.
+  - Downloads go directly to the default Downloads folder or a saved custom folder.
+  - No folder picker is shown during the download flow, so short-lived SAM.gov ZIP links are not wasted waiting for user input.
   - Tries SAM.gov's website-style **Download All Attachments/Links** ZIP method first.
   - Falls back to individual public attachment downloads when the ZIP method is unavailable.
 - Optional checkbox: search all date ranges.
@@ -128,7 +130,7 @@ run_samgovsearch.bat
 The BAT launcher will:
 
 - start from the repo folder automatically
-- launch `samgovsearch_pro_exclusions.py`
+- launch `samgovsearch_pro_download_folder.py`
 - use `py -3` first, then fall back to `python`
 - warn you if Python is missing
 - allow no-key searching in Website/Internal mode
@@ -185,7 +187,7 @@ For the current PowerShell window only:
 
 ```powershell
 $env:SAM_API_KEY = "paste_your_sam_api_key_here"
-python .\samgovsearch_pro_exclusions.py
+python .\samgovsearch_pro_download_folder.py
 ```
 
 For your Windows user profile permanently:
@@ -351,6 +353,28 @@ Settings are saved beside the cache:
 %LOCALAPPDATA%\SAMGovSearch\ApiCache\samgovsearch_settings.json
 ```
 
+## Download folder options
+
+Attachment downloads no longer ask for a folder during the download attempt. By default, the app saves to:
+
+```text
+%USERPROFILE%\Downloads
+```
+
+To change this before downloading:
+
+1. Click **Download Folder Options**.
+2. Choose a custom folder with **Browse**, or leave the field blank to use Downloads.
+3. Click **Save**.
+
+The download setting is saved beside the cache:
+
+```text
+%LOCALAPPDATA%\SAMGovSearch\ApiCache\samgovsearch_download_settings.json
+```
+
+This matters because SAM.gov generated ZIP links can expire in only a few seconds. Avoiding a folder picker helps the app download the ZIP immediately after the URL appears.
+
 ## Sorting results
 
 Click any result column header to sort the loaded results.
@@ -369,14 +393,14 @@ Select one result row and click:
 Download Attachments for Selected Result
 ```
 
-The app will ask for a folder and create a subfolder using the solicitation number, notice ID, or title.
+The app immediately creates a subfolder under the configured download root using the solicitation number, notice ID, or title. It does not prompt for a folder at download time.
 
-The preferred method is now the same user-visible flow SAM.gov uses:
+The preferred method is the same user-visible flow SAM.gov uses:
 
 1. Open the selected SAM.gov opportunity page in a headless Chromium session.
 2. Click **Download All Attachments/Links**.
 3. Wait for SAM.gov to generate the short-lived ZIP download link.
-4. Download that ZIP immediately into the selected folder.
+4. Download that ZIP immediately into the configured download folder.
 
 This method requires the optional Playwright dependency:
 
