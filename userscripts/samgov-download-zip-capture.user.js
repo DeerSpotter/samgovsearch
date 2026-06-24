@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         SAM.gov Download All ZIP Capture
 // @namespace    https://github.com/DeerSpotter/samgovsearch
-// @version      0.1.0
-// @description  Captures the short-lived SAM.gov Download All Attachments/Links ZIP URL so the Python app can mirror the working browser behavior.
+// @version      0.2.0
+// @description  Captures SAM.gov Download All Attachments/Links ZIP URLs and can immediately download them before the short S3 expiry window closes.
 // @author       DeerSpotter
 // @match        https://sam.gov/opp/*/view*
 // @match        https://sam.gov/opp/*
@@ -23,10 +23,14 @@
     const state = {
         captures: [],
         seen: new Set(),
+        downloaded: new Set(),
         panelReady: false,
         latestUrl: '',
         latestSource: '',
         clickCount: 0,
+        instantPending: false,
+        instantStartedAt: 0,
+        lastDownloadStatus: '',
     };
 
     function log(...args) {
@@ -50,26 +54,47 @@
     function captureUrl(rawUrl, source) {
         const url = cleanUrl(rawUrl);
         if (!isCandidateZipUrl(url)) return;
-        if (state.seen.has(url)) return;
 
-        state.seen.add(url);
-        state.latestUrl = url;
-        state.latestSource = source || 'unknown';
-        state.captures.unshift({
-            url,
-            source: state.latestSource,
-            capturedAt: new Date().toISOString(),
-        });
-
-        log('Captured ZIP URL from', state.latestSource, url);
-        updatePanel();
-
-        try {
-            GM_notification({
-                title: 'SAM.gov ZIP URL captured',
-                text: 'Click the Tampermonkey panel to copy or download it.',
-                timeout: 5000,
+        const now = Date.now();
+        const alreadySeen = state.seen.has(url);
+        if (!alreadySeen) {
+            state.seen.add(url);
+            state.latestUrl = url;
+            state.latestSource = source || 'unknown';
+            state.captures.unshift({
+                url,
+                source: state.latestSource,
+                capturedAt: new Date(now).toISOString(),
+                capturedAtMs: now,
+                expiresInSeconds: parseSignedUrlExpiry(url),
             });
+
+            log('Captured ZIP URL from', state.latestSource, url);
+            notify('SAM.gov ZIP URL captured', 'Use Instant Download, not copy/paste. These URLs can expire in about 9 seconds.');
+        }
+
+        if (state.instantPending && now >= state.instantStartedAt - 250) {
+            instantDownloadUrl(url, `instant capture from ${source || 'unknown'}`);
+            state.instantPending = false;
+        }
+
+        updatePanel();
+    }
+
+    function parseSignedUrlExpiry(url) {
+        try {
+            const parsed = new URL(url);
+            const expires = parsed.searchParams.get('X-Amz-Expires');
+            if (expires && /^\d+$/.test(expires)) return Number(expires);
+        } catch (_err) {
+            // Ignore parse errors.
+        }
+        return null;
+    }
+
+    function notify(title, text) {
+        try {
+            GM_notification({ title, text, timeout: 3500 });
         } catch (_err) {
             // Notification support varies by userscript manager.
         }
@@ -104,8 +129,6 @@
             });
         }
 
-        // The SAM.gov page injects a visible "Download Link / click here" anchor after clicking
-        // Download All Attachments/Links. Scan a bounded amount of text so the observer stays light.
         const text = node.textContent || '';
         if (text.includes('iae-fbo-attachments') || text.includes('X-Amz-Algorithm') || text.includes('.zip')) {
             scanText(text.slice(0, 200000), source + ' text');
@@ -179,11 +202,25 @@
         if (!button) {
             log('Download All Attachments/Links button not found on this page yet.');
             alert('Download All Attachments/Links button was not found yet. Scroll to Attachments/Links or wait for the page to finish loading, then try again.');
-            return;
+            return false;
         }
         state.clickCount += 1;
         log('Clicking Download All Attachments/Links button', button);
         button.click();
+        updatePanel();
+        return true;
+    }
+
+    function instantClickDownloadAll() {
+        state.instantPending = true;
+        state.instantStartedAt = Date.now();
+        state.lastDownloadStatus = 'Armed. Waiting for SAM.gov to generate the ZIP URL...';
+        log('Instant mode armed. The first generated ZIP URL will be downloaded immediately.');
+        const clicked = clickDownloadAll();
+        if (!clicked) {
+            state.instantPending = false;
+            state.lastDownloadStatus = 'Could not arm instant download because the Download All button was not found.';
+        }
         updatePanel();
     }
 
@@ -193,7 +230,9 @@
             return;
         }
         GM_setClipboard(state.latestUrl, 'text');
-        log('Copied latest ZIP URL to clipboard');
+        log('Copied latest ZIP URL to clipboard. It may expire in seconds:', state.latestUrl);
+        state.lastDownloadStatus = 'Copied latest URL. Warning: copied S3 URLs usually expire in about 9 seconds.';
+        updatePanel();
     }
 
     function downloadLatest() {
@@ -201,34 +240,66 @@
             alert('No ZIP URL captured yet. Click Download All or use the page button first.');
             return;
         }
+        instantDownloadUrl(state.latestUrl, 'manual latest download');
+    }
+
+    function instantDownloadUrl(url, reason) {
+        const clean = cleanUrl(url);
+        if (!clean || state.downloaded.has(clean)) return;
+        state.downloaded.add(clean);
+
         const name = makeZipName();
+        state.lastDownloadStatus = `Downloading immediately: ${name}`;
+        log('Instant ZIP download starting:', reason, clean);
+        updatePanel();
+
         try {
             GM_download({
-                url: state.latestUrl,
+                url: clean,
                 name,
-                saveAs: true,
+                saveAs: false,
+                onload: () => {
+                    state.lastDownloadStatus = `Downloaded: ${name}`;
+                    log('Instant ZIP download completed:', name);
+                    notify('SAM.gov ZIP downloaded', name);
+                    updatePanel();
+                },
                 onerror: (err) => {
+                    state.lastDownloadStatus = 'GM_download failed. Opening URL directly as immediate fallback.';
                     log('GM_download failed, opening URL directly:', err);
-                    window.open(state.latestUrl, '_blank', 'noopener,noreferrer');
+                    window.location.href = clean;
+                    updatePanel();
+                },
+                ontimeout: () => {
+                    state.lastDownloadStatus = 'GM_download timed out. The URL probably expired.';
+                    log('GM_download timed out. URL probably expired.');
+                    updatePanel();
                 },
             });
         } catch (err) {
+            state.lastDownloadStatus = 'GM_download unavailable. Opening URL directly as immediate fallback.';
             log('GM_download unavailable, opening URL directly:', err);
-            window.open(state.latestUrl, '_blank', 'noopener,noreferrer');
+            window.location.href = clean;
+            updatePanel();
         }
     }
 
     function makeZipName() {
         const title = document.title || 'samgov_attachments';
         const safe = title.replace(/\s*\|\s*SAM\.gov.*$/i, '').replace(/[^a-z0-9._ -]+/ig, '_').trim();
-        return (safe || 'samgov_attachments') + '.zip';
+        const stamped = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        return `${safe || 'samgov_attachments'}_${stamped}.zip`;
     }
 
     function clearCaptures() {
         state.captures = [];
         state.seen.clear();
+        state.downloaded.clear();
         state.latestUrl = '';
         state.latestSource = '';
+        state.instantPending = false;
+        state.instantStartedAt = 0;
+        state.lastDownloadStatus = '';
         updatePanel();
     }
 
@@ -242,7 +313,7 @@
             'right:12px',
             'bottom:12px',
             'z-index:2147483647',
-            'width:390px',
+            'width:410px',
             'max-width:calc(100vw - 24px)',
             'font-family:Arial,sans-serif',
             'font-size:12px',
@@ -260,17 +331,21 @@
                 <button id="samzip-hide" style="font-size:11px;">Hide</button>
             </div>
             <div id="samzip-status" style="line-height:1.35;margin-bottom:8px;color:#d1d5db;">Waiting for ZIP URL...</div>
+            <div id="samzip-download-status" style="line-height:1.35;margin-bottom:8px;color:#fde68a;"></div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;">
-                <button id="samzip-click">Click Download All</button>
-                <button id="samzip-download">Download Latest</button>
+                <button id="samzip-instant">Instant Download All ZIP</button>
+                <button id="samzip-click">Click Only</button>
+                <button id="samzip-download">Fast Download Latest</button>
                 <button id="samzip-copy">Copy Latest URL</button>
                 <button id="samzip-clear">Clear</button>
             </div>
+            <div style="line-height:1.35;margin-bottom:6px;color:#fca5a5;">Copied links usually expire almost immediately. Use Instant Download for real testing.</div>
             <textarea id="samzip-latest" readonly style="box-sizing:border-box;width:100%;height:82px;font-size:11px;resize:vertical;"></textarea>
             <div id="samzip-list" style="margin-top:8px;max-height:120px;overflow:auto;border-top:1px solid #374151;padding-top:6px;"></div>
         `;
 
         document.documentElement.appendChild(panel);
+        panel.querySelector('#samzip-instant').addEventListener('click', instantClickDownloadAll);
         panel.querySelector('#samzip-click').addEventListener('click', clickDownloadAll);
         panel.querySelector('#samzip-copy').addEventListener('click', copyLatest);
         panel.querySelector('#samzip-download').addEventListener('click', downloadLatest);
@@ -295,20 +370,29 @@
     function updatePanel() {
         if (!state.panelReady) return;
         const status = document.getElementById('samzip-status');
+        const downloadStatus = document.getElementById('samzip-download-status');
         const latest = document.getElementById('samzip-latest');
         const list = document.getElementById('samzip-list');
-        if (!status || !latest || !list) return;
+        if (!status || !downloadStatus || !latest || !list) return;
 
         if (state.latestUrl) {
-            status.innerHTML = `Captured <b>${state.captures.length}</b> ZIP URL(s). Latest source: <b>${escapeHtml(state.latestSource)}</b>. Clicked Download All: <b>${state.clickCount}</b>.`;
+            const latestCapture = state.captures[0] || {};
+            const expiryText = latestCapture.expiresInSeconds ? ` Signed URL expiry: <b>${latestCapture.expiresInSeconds}s</b>.` : '';
+            status.innerHTML = `Captured <b>${state.captures.length}</b> ZIP URL(s). Latest source: <b>${escapeHtml(state.latestSource)}</b>. Clicked Download All: <b>${state.clickCount}</b>.${expiryText}`;
             latest.value = state.latestUrl;
+        } else if (state.instantPending) {
+            status.innerHTML = `Instant mode is armed. Waiting for SAM.gov to inject the ZIP URL. Clicked: <b>${state.clickCount}</b>.`;
+            latest.value = '';
         } else {
-            status.innerHTML = `Waiting for ZIP URL. Click the page's <b>Download All Attachments/Links</b> button or use <b>Click Download All</b>. Clicked: <b>${state.clickCount}</b>.`;
+            status.innerHTML = `Waiting for ZIP URL. Use <b>Instant Download All ZIP</b> for the 9-second URL window. Clicked: <b>${state.clickCount}</b>.`;
             latest.value = '';
         }
 
+        downloadStatus.textContent = state.lastDownloadStatus || '';
+
         list.innerHTML = state.captures.slice(0, 10).map((item, index) => {
-            return `<div style="margin-bottom:6px;word-break:break-all;"><b>#${index + 1}</b> ${escapeHtml(item.source)}<br><a href="${escapeAttr(item.url)}" target="_blank" style="color:#93c5fd;">${escapeHtml(item.url)}</a></div>`;
+            const expiry = item.expiresInSeconds ? ` expires=${item.expiresInSeconds}s` : '';
+            return `<div style="margin-bottom:6px;word-break:break-all;"><b>#${index + 1}</b> ${escapeHtml(item.source)}${expiry}<br><a href="${escapeAttr(item.url)}" target="_blank" style="color:#93c5fd;">${escapeHtml(item.url)}</a></div>`;
         }).join('');
     }
 
