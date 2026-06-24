@@ -20,6 +20,7 @@ No API key is stored in the app, written to disk, or entered into the GUI.
   - notice ID search for long hexadecimal notice IDs
 - Optional checkbox: search all date ranges.
 - Optional checkbox: search all statuses.
+- All-date searches warn before large API runs and throttle requests to reduce 429 quota/rate-limit errors.
 - Optional filter: only show opportunities with attachments.
 - When attachment filtering is enabled, extra fields appear:
   - minimum attachment count
@@ -120,6 +121,20 @@ When this is checked, the app disables the Posted From and Posted To fields and 
 ```
 
 It does that by splitting the search into 364-day SAM.gov API windows. This avoids invalid no-date requests and avoids the SAM.gov posted date range boundary error.
+
+## Quota behavior
+
+`Search all date ranges` multiplies API requests. For example, three batch items across nine date windows can require dozens of SAM.gov requests before attachment checks are considered.
+
+To reduce accidental quota usage, the launcher app now:
+
+- estimates the minimum number of API search requests before all-date searches
+- asks for confirmation before larger all-date runs
+- waits 2 seconds between all-date SAM.gov search requests
+- stops cleanly if SAM.gov returns HTTP 429
+- displays SAM.gov's `nextAccessTime` when it is included in the 429 response
+
+If SAM.gov says your quota is exceeded, the app cannot bypass that. Wait until the displayed reset time or reduce the run size by using a smaller date range, fewer batch entries, a more specific search mode, or fewer broad keywords.
 
 ## Status behavior
 
