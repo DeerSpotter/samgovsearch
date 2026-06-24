@@ -100,12 +100,14 @@ SAM.gov requires a posted date range for the Opportunities API. The SAM.gov API 
 MM/DD/YYYY
 ```
 
-The GUI defaults to:
+The GUI launcher defaults to:
 
-- Posted From: today minus 365 days
+- Posted From: today minus 364 days
 - Posted To: today
 
-The manual date range must be 1 year or less. If you need to search wider than one year, check:
+The app intentionally stays below the exact one-calendar-year boundary because SAM.gov can reject a request such as `06/24/2025` through `06/24/2026` with a date range error.
+
+The manual date range must be less than one calendar year. If you need to search wider than one year, check:
 
 ```text
 Search all date ranges
@@ -117,7 +119,7 @@ When this is checked, the app disables the Posted From and Posted To fields and 
 01/01/2018 through today
 ```
 
-It does that by splitting the search into 1-year SAM.gov API windows. This avoids invalid no-date requests and avoids the SAM.gov 1-year posted date range limit.
+It does that by splitting the search into 364-day SAM.gov API windows. This avoids invalid no-date requests and avoids the SAM.gov posted date range boundary error.
 
 ## Status behavior
 
