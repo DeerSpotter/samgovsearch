@@ -13,10 +13,12 @@ No API key is stored in the app, written to disk, or entered into the GUI.
 ## Features
 
 - Batch search one keyword, part number, solicitation number, or notice ID per line.
+- Duplicate batch entries are removed before searching.
 - Auto search mode for mixed batches:
   - title search for normal keywords
   - solicitation number search for values that look like part numbers or solicitation numbers
   - notice ID search for long hexadecimal notice IDs
+- Optional checkbox: search all date ranges.
 - Optional filter: only show opportunities with attachments.
 - When attachment filtering is enabled, extra fields appear:
   - minimum attachment count
@@ -90,18 +92,44 @@ Close and reopen PowerShell after setting it permanently.
 
 ## Date behavior
 
-SAM.gov requires a posted date range for the Opportunities API.
+SAM.gov requires a posted date range for the Opportunities API. The SAM.gov API date format is:
+
+```text
+MM/DD/YYYY
+```
 
 The GUI defaults to:
 
 - Posted From: today minus 365 days
 - Posted To: today
 
-The SAM.gov API date format is:
+The manual date range must be 1 year or less. If you need to search wider than one year, check:
 
 ```text
-MM/DD/YYYY
+Search all date ranges
 ```
+
+When this is checked, the app disables the Posted From and Posted To fields and searches from:
+
+```text
+01/01/2018 through today
+```
+
+It does that by splitting the search into 1-year SAM.gov API windows. This avoids invalid no-date requests and avoids the SAM.gov 1-year posted date range limit.
+
+## Batch dedupe behavior
+
+Before searching, the app removes duplicate batch entries. Dedupe is case-insensitive and ignores extra interior whitespace for matching.
+
+Example:
+
+```text
+Patriot
+patriot
+PATRIOT
+```
+
+Only the first `Patriot` line is searched.
 
 ## Search modes
 
