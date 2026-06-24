@@ -3,840 +3,311 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>SAM.gov Search, No API Key</title>
+  <title>SAM.gov Search Tool, No API Key</title>
   <style>
-    :root {
-      color-scheme: dark;
-      --bg: #0b1220;
-      --panel: #111a2c;
-      --panel2: #162238;
-      --text: #e8eefc;
-      --muted: #9eb0cc;
-      --line: #2a3957;
-      --accent: #79a7ff;
-      --good: #5ad19a;
-      --warn: #ffd166;
-      --bad: #ff7b7b;
-      --shadow: rgba(0, 0, 0, .32);
-    }
+    :root { color-scheme: dark; --bg:#07101f; --panel:#101a2c; --panel2:#152238; --line:#2b3b5a; --text:#eaf0ff; --muted:#9fb0cc; --accent:#7aa7ff; --bad:#ff7b7b; --warn:#ffd166; }
     * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font: 14px/1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: radial-gradient(circle at top left, #16284a 0, var(--bg) 38rem);
-      color: var(--text);
-    }
-    header {
-      padding: 16px 20px 12px;
-      border-bottom: 1px solid var(--line);
-      background: rgba(11, 18, 32, .84);
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      backdrop-filter: blur(8px);
-    }
-    h1 { margin: 0; font-size: 22px; letter-spacing: .2px; }
-    .sub { color: var(--muted); margin-top: 4px; max-width: 1100px; }
-    .shell {
-      display: grid;
-      grid-template-columns: minmax(320px, 420px) minmax(640px, 1fr);
-      gap: 14px;
-      padding: 14px;
-      min-height: calc(100vh - 76px);
-    }
-    aside, main, .card {
-      background: rgba(17, 26, 44, .94);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      box-shadow: 0 14px 35px var(--shadow);
-    }
-    aside { padding: 12px; overflow: auto; max-height: calc(100vh - 104px); }
-    main { padding: 12px; min-width: 0; }
-    fieldset {
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      margin: 0 0 12px;
-      padding: 10px;
-      background: rgba(22, 34, 56, .72);
-    }
-    legend { padding: 0 6px; color: #dbe6fb; font-weight: 650; }
-    label { display: block; color: var(--muted); font-size: 12px; margin: 9px 0 4px; }
-    input, textarea, select, button {
-      width: 100%;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: #0c1527;
-      color: var(--text);
-      padding: 8px 9px;
-      font: inherit;
-    }
-    textarea { min-height: 145px; resize: vertical; }
-    input[type="checkbox"] { width: auto; margin-right: 7px; vertical-align: middle; }
-    .checkrow { display: flex; gap: 8px; align-items: flex-start; color: var(--text); margin: 8px 0; }
-    .checkrow input { margin-top: 3px; flex: 0 0 auto; }
-    .checkrow span { flex: 1; }
-    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
-    .buttons { display: grid; grid-template-columns: 1.25fr 1fr; gap: 8px; margin-top: 8px; }
-    button { cursor: pointer; font-weight: 650; }
-    button.primary { background: linear-gradient(180deg, #4b7be5, #365db6); border-color: #5e8dff; }
-    button.secondary { background: #14213b; }
-    button.danger { background: #44202a; border-color: #713949; }
-    button:disabled { opacity: .55; cursor: not-allowed; }
-    .note {
-      border-left: 3px solid var(--accent);
-      background: rgba(121, 167, 255, .08);
-      padding: 8px 10px;
-      border-radius: 8px;
-      color: #d5e2ff;
-      margin-bottom: 10px;
-    }
-    .warn { border-left-color: var(--warn); background: rgba(255, 209, 102, .10); }
-    .bad { border-left-color: var(--bad); background: rgba(255, 123, 123, .10); }
-    .statusbar {
-      display: grid;
-      grid-template-columns: 1fr auto auto;
-      gap: 10px;
-      align-items: center;
-      margin-bottom: 10px;
-    }
-    .pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 5px 8px;
-      border-radius: 999px;
-      background: #0c1527;
-      border: 1px solid var(--line);
-      color: var(--muted);
-      white-space: nowrap;
-    }
-    .tablewrap { overflow: auto; border: 1px solid var(--line); border-radius: 10px; max-height: 56vh; }
-    table { width: 100%; border-collapse: collapse; min-width: 1180px; }
-    th, td { padding: 8px 9px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
-    th { background: #101b30; position: sticky; top: 0; z-index: 3; cursor: pointer; user-select: none; }
-    tr:hover td { background: rgba(121, 167, 255, .06); }
-    td a { color: #9ec1ff; }
-    .muted { color: var(--muted); }
-    .small { font-size: 12px; }
-    .log {
-      margin-top: 10px;
-      background: #08111f;
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      padding: 10px;
-      min-height: 105px;
-      max-height: 210px;
-      overflow: auto;
-      white-space: pre-wrap;
-      color: #c6d5ee;
-      font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
-      font-size: 12px;
-    }
-    .details {
-      margin-top: 10px;
-      padding: 10px;
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      background: #0c1527;
-      min-height: 80px;
-    }
-    .details h2 { margin: 0 0 6px; font-size: 16px; }
-    .linkrow { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
-    .linkrow a, .fakeLink {
-      display: inline-block;
-      border: 1px solid var(--line);
-      background: #111f39;
-      border-radius: 999px;
-      color: #b9d0ff;
-      text-decoration: none;
-      padding: 5px 8px;
-    }
-    @media (max-width: 980px) {
-      .shell { grid-template-columns: 1fr; }
-      aside { max-height: none; }
-      .statusbar { grid-template-columns: 1fr; }
-    }
+    body { margin:0; font:14px/1.45 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; background:radial-gradient(circle at 0 0,#17315f,var(--bg) 34rem); color:var(--text); }
+    header { padding:14px 18px; border-bottom:1px solid var(--line); background:rgba(7,16,31,.9); position:sticky; top:0; z-index:5; backdrop-filter:blur(8px); }
+    h1 { margin:0; font-size:22px; }
+    .sub { color:var(--muted); margin-top:4px; }
+    .layout { display:grid; grid-template-columns:minmax(330px,430px) minmax(650px,1fr); gap:12px; padding:12px; }
+    aside, main { background:rgba(16,26,44,.96); border:1px solid var(--line); border-radius:12px; padding:12px; min-width:0; }
+    aside { max-height:calc(100vh - 86px); overflow:auto; }
+    fieldset { border:1px solid var(--line); border-radius:10px; padding:10px; margin:0 0 10px; background:rgba(21,34,56,.78); }
+    legend { padding:0 6px; font-weight:700; }
+    label { display:block; color:var(--muted); font-size:12px; margin:8px 0 4px; }
+    input, textarea, select, button { width:100%; border:1px solid var(--line); border-radius:8px; background:#091426; color:var(--text); padding:8px 9px; font:inherit; }
+    textarea { min-height:130px; resize:vertical; }
+    input[type=checkbox] { width:auto; margin:0 7px 0 0; }
+    button { cursor:pointer; font-weight:700; }
+    button.primary { background:linear-gradient(180deg,#4d7fe7,#365db7); border-color:#6b97ff; }
+    button.secondary { background:#14213b; }
+    button.danger { background:#44202a; border-color:#773747; }
+    button:disabled { opacity:.55; cursor:not-allowed; }
+    .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
+    .buttons { display:grid; grid-template-columns:1.2fr 1fr; gap:8px; }
+    .check { display:flex; align-items:flex-start; gap:6px; margin:8px 0; }
+    .check span { flex:1; }
+    .note { border-left:3px solid var(--accent); background:rgba(122,167,255,.08); border-radius:8px; padding:8px 10px; color:#d8e4ff; margin-bottom:10px; }
+    .warn { border-left-color:var(--warn); background:rgba(255,209,102,.1); }
+    .bad { border-left-color:var(--bad); background:rgba(255,123,123,.1); }
+    .ok { border-left-color:#5ad19a; background:rgba(90,209,154,.1); }
+    .topbar { display:grid; grid-template-columns:1fr auto auto; gap:8px; margin-bottom:10px; align-items:center; }
+    .pill { border:1px solid var(--line); background:#091426; color:var(--muted); border-radius:999px; padding:6px 9px; white-space:nowrap; }
+    .tablewrap { overflow:auto; border:1px solid var(--line); border-radius:10px; max-height:55vh; }
+    table { width:100%; min-width:1200px; border-collapse:collapse; }
+    th, td { border-bottom:1px solid var(--line); padding:8px 9px; text-align:left; vertical-align:top; }
+    th { position:sticky; top:0; background:#0e1a30; z-index:2; cursor:pointer; user-select:none; }
+    tr:hover td { background:rgba(122,167,255,.06); }
+    a { color:#a9c8ff; }
+    .details, .log { margin-top:10px; border:1px solid var(--line); border-radius:10px; background:#091426; padding:10px; }
+    .details { min-height:90px; }
+    .details h2 { margin:0 0 6px; font-size:16px; }
+    .log { min-height:100px; max-height:210px; overflow:auto; white-space:pre-wrap; font:12px/1.45 ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace; color:#c9d7ee; }
+    .muted { color:var(--muted); }
+    .small { font-size:12px; }
+    .links { display:flex; flex-wrap:wrap; gap:7px; margin:7px 0; }
+    .links a { display:inline-block; border:1px solid var(--line); border-radius:999px; background:#12213c; padding:5px 8px; text-decoration:none; }
+    @media (max-width:1000px) { .layout { grid-template-columns:1fr; } aside { max-height:none; } .topbar { grid-template-columns:1fr; } }
   </style>
 </head>
 <body>
-  <header>
-    <h1>SAM.gov Search, No API Key</h1>
-    <div class="sub">Static GitHub Pages version. It uses SAM.gov website search endpoints directly from your browser. No SAM_API_KEY, Python, server, or install step.</div>
-  </header>
-
-  <div class="shell">
-    <aside>
-      <div id="corsNote" class="note warn">
-        GitHub Pages can only run browser JavaScript. If SAM.gov blocks cross origin browser requests, the page will show SAM.gov search links instead of live rows. That is a browser security limit, not an API key issue.
+<header>
+  <h1>SAM.gov Search Tool, No API Key</h1>
+  <div class="sub">GitHub Pages front end with a no-key Worker proxy. Search results are live rows, not just fallback links.</div>
+</header>
+<div class="layout">
+  <aside>
+    <div id="proxyNote" class="note warn">Checking proxy...</div>
+    <fieldset>
+      <legend>Tool Connection</legend>
+      <label for="proxyBase">Proxy Worker URL</label>
+      <input id="proxyBase" value="https://samgovsearch.spotterdeer.workers.dev" spellcheck="false">
+      <div class="grid2" style="margin-top:8px">
+        <button id="testProxyBtn" class="secondary">Test Proxy</button>
+        <button id="saveProxyBtn" class="secondary">Save URL</button>
       </div>
+      <div class="small muted">The Worker relays public SAM.gov website endpoints and does not use a SAM.gov API key.</div>
+    </fieldset>
 
-      <fieldset>
-        <legend>Batch Search</legend>
-        <label for="terms">Keywords, part numbers, solicitation numbers, notice IDs</label>
-        <textarea id="terms">Patriot
+    <fieldset>
+      <legend>Batch Search</legend>
+      <label for="terms">Keywords, part numbers, solicitation numbers, notice IDs, or NAICS</label>
+      <textarea id="terms">Patriot
 frequency converter
 336414
 336415
 336419</textarea>
-        <div class="checkrow"><input id="naicsMode" type="checkbox" checked><span>Treat number only lines as NAICS filters. Results are client filtered by NAICS when possible.</span></div>
-      </fieldset>
+      <label class="check"><input id="naicsMode" type="checkbox" checked><span>When a line is numbers only, search it as NAICS. If unchecked, numbers use the normal keyword/solicitation logic.</span></label>
+    </fieldset>
 
-      <fieldset>
-        <legend>Date and SAM Options</legend>
-        <div class="grid2">
-          <div><label for="postedFrom">Posted From</label><input id="postedFrom" placeholder="MM/DD/YYYY"></div>
-          <div><label for="postedTo">Posted To</label><input id="postedTo" placeholder="MM/DD/YYYY"></div>
-        </div>
-        <div class="checkrow"><input id="allDates" type="checkbox"><span>Search all date ranges from 01/01/2018 to today using 364 day windows.</span></div>
-        <div class="grid2">
-          <div>
-            <label for="status">Status</label>
-            <select id="status">
-              <option value="active" selected>active</option>
-              <option value="">all or SAM default</option>
-              <option value="inactive">inactive</option>
-              <option value="archived">archived</option>
-              <option value="cancelled">cancelled</option>
-              <option value="deleted">deleted</option>
-            </select>
-          </div>
-          <div>
-            <label for="ptype">Procurement Type</label>
-            <select id="ptype">
-              <option value="">Any</option>
-              <option value="o Solicitation">o Solicitation</option>
-              <option value="k Combined Synopsis/Solicitation">k Combined Synopsis/Solicitation</option>
-              <option value="r Sources Sought">r Sources Sought</option>
-              <option value="p Presolicitation">p Presolicitation</option>
-              <option value="s Special Notice">s Special Notice</option>
-              <option value="a Award Notice">a Award Notice</option>
-              <option value="u Justification">u Justification</option>
-              <option value="g Sale of Surplus Property">g Sale of Surplus Property</option>
-              <option value="i Intent to Bundle Requirements">i Intent to Bundle Requirements</option>
-            </select>
-          </div>
-        </div>
-        <label for="mode">Search Mode</label>
-        <select id="mode">
-          <option>Auto</option>
-          <option>Title</option>
-          <option>Solicitation Number</option>
-          <option>Notice ID</option>
-          <option>Title + Solicitation Number</option>
-        </select>
-        <div class="grid3">
-          <div><label for="maxResults">Max / Term</label><input id="maxResults" type="number" min="1" max="500" value="100"></div>
-          <div><label for="pageSize">Page Size</label><input id="pageSize" type="number" min="1" max="100" value="100"></div>
-          <div><label for="delayMs">Delay ms</label><input id="delayMs" type="number" min="0" max="10000" value="350"></div>
-        </div>
-      </fieldset>
-
-      <fieldset>
-        <legend>Attachments</legend>
-        <div class="checkrow"><input id="enrichResources" type="checkbox" checked><span>Fetch attachment names and sizes from the no key resources endpoint. Slower but better for filtering.</span></div>
-        <div class="checkrow"><input id="requireAttachments" type="checkbox"><span>Only show opportunities with attachments.</span></div>
-        <div class="grid2">
-          <div><label for="minCount">Min Count</label><input id="minCount" type="number" min="0" value="0"></div>
-          <div><label for="minMb">Min Total MB</label><input id="minMb" type="number" min="0" step="0.001" value="0"></div>
-        </div>
-      </fieldset>
-
-      <fieldset>
-        <legend>Local Result Filters</legend>
-        <label for="titleFilter">Show titles containing</label>
-        <input id="titleFilter" placeholder="Example: canister or *assembly*">
-        <label for="hideFilter">Hide titles containing comma separated terms</label>
-        <input id="hideFilter" placeholder="amendment, award, cancelled">
-        <div class="small muted">These filters only check the result title, by design.</div>
-      </fieldset>
-
-      <div class="buttons">
-        <button id="searchBtn" class="primary">Search</button>
-        <button id="stopBtn" class="danger" disabled>Stop</button>
-        <button id="exportBtn" class="secondary" disabled>Export CSV</button>
-        <button id="clearBtn" class="secondary">Clear Results</button>
+    <fieldset>
+      <legend>Search Options</legend>
+      <div class="grid2">
+        <div><label for="postedFrom">Posted From</label><input id="postedFrom" placeholder="MM/DD/YYYY"></div>
+        <div><label for="postedTo">Posted To</label><input id="postedTo" placeholder="MM/DD/YYYY"></div>
       </div>
-    </aside>
-
-    <main>
-      <div class="statusbar">
-        <div id="statusText" class="pill">Ready.</div>
-        <div id="countText" class="pill">0 results</div>
-        <div id="requestText" class="pill">0 requests</div>
+      <label class="check"><input id="allDates" type="checkbox"><span>Search all date ranges from 01/01/2018 to today using 364 day windows.</span></label>
+      <div class="grid2">
+        <div><label for="status">Status</label><select id="status"><option value="active" selected>active</option><option value="">all or SAM default</option><option value="inactive">inactive</option><option value="archived">archived</option><option value="cancelled">cancelled</option><option value="deleted">deleted</option></select></div>
+        <div><label for="ptype">Procurement Type</label><select id="ptype"><option value="">Any</option><option value="o Solicitation">o Solicitation</option><option value="k Combined Synopsis/Solicitation">k Combined Synopsis/Solicitation</option><option value="r Sources Sought">r Sources Sought</option><option value="p Presolicitation">p Presolicitation</option><option value="s Special Notice">s Special Notice</option><option value="a Award Notice">a Award Notice</option><option value="u Justification">u Justification</option></select></div>
       </div>
-      <div class="tablewrap">
-        <table id="resultsTable">
-          <thead><tr id="headRow"></tr></thead>
-          <tbody id="resultsBody"></tbody>
-        </table>
+      <label for="mode">Search Mode</label>
+      <select id="mode"><option>Auto</option><option>Title</option><option>Solicitation Number</option><option>Notice ID</option><option>Title + Solicitation Number</option></select>
+      <div class="grid3">
+        <div><label for="maxResults">Max / Term</label><input id="maxResults" type="number" min="1" max="500" value="100"></div>
+        <div><label for="pageSize">Page Size</label><input id="pageSize" type="number" min="1" max="100" value="100"></div>
+        <div><label for="delayMs">Delay ms</label><input id="delayMs" type="number" min="0" max="10000" value="350"></div>
       </div>
-      <div id="details" class="details muted">Select a row to see details, attachment names, and links.</div>
-      <div id="log" class="log"></div>
-    </main>
-  </div>
+    </fieldset>
 
-  <script>
-  (() => {
-    'use strict';
+    <fieldset>
+      <legend>Attachment Filters</legend>
+      <label class="check"><input id="enrichResources" type="checkbox" checked><span>Load attachment names and sizes through the proxy resources endpoint.</span></label>
+      <label class="check"><input id="requireAttachments" type="checkbox"><span>Only show opportunities with attachments.</span></label>
+      <div class="grid2">
+        <div><label for="minCount">Minimum Count</label><input id="minCount" type="number" min="0" value="0"></div>
+        <div><label for="minMb">Minimum Total MB</label><input id="minMb" type="number" min="0" step="0.001" value="0"></div>
+      </div>
+    </fieldset>
 
-    const INTERNAL_SEARCH_URL = 'https://sam.gov/api/prod/sgs/v1/search/';
-    const INTERNAL_DETAILS_URL = 'https://sam.gov/api/prod/opps/v2/opportunities';
-    const INTERNAL_RESOURCES_URL = 'https://sam.gov/api/prod/opps/v3/opportunities';
-    const INTERNAL_DOWNLOAD_URL = 'https://sam.gov/api/prod/opps/v3/opportunities/resources/files';
-    const ALL_DATE_START = new Date(2018, 0, 1);
-    const MAX_WINDOW_DAYS = 364;
+    <fieldset>
+      <legend>Result Title Filter</legend>
+      <label for="titleFilter">Show titles containing</label><input id="titleFilter" placeholder="example: canister or *assembly*">
+      <label for="hideFilter">Hide titles containing comma separated terms</label><input id="hideFilter" placeholder="amendment, award, cancelled">
+      <div class="small muted">This filter intentionally checks title only.</div>
+    </fieldset>
 
-    const columns = [
-      ['keyword', 'Keyword'], ['matchedBy', 'Matched By'], ['postedDate', 'Posted'], ['title', 'Title'],
-      ['solicitationNumber', 'Solicitation'], ['noticeType', 'Type'], ['organization', 'Organization'],
-      ['naicsCode', 'NAICS'], ['classificationCode', 'PSC'], ['attachmentCount', 'Attachments'],
-      ['attachmentTotalMbText', 'Total MB'], ['uiLink', 'SAM Link']
-    ];
+    <div class="buttons">
+      <button id="searchBtn" class="primary">Search</button>
+      <button id="stopBtn" class="danger" disabled>Stop</button>
+      <button id="exportBtn" class="secondary" disabled>Export CSV</button>
+      <button id="clearBtn" class="secondary">Clear Results</button>
+    </div>
+  </aside>
 
-    const els = Object.fromEntries([
-      'terms','naicsMode','postedFrom','postedTo','allDates','status','ptype','mode','maxResults','pageSize','delayMs',
-      'enrichResources','requireAttachments','minCount','minMb','titleFilter','hideFilter','searchBtn','stopBtn','exportBtn',
-      'clearBtn','statusText','countText','requestText','headRow','resultsBody','details','log','corsNote'
-    ].map(id => [id, document.getElementById(id)]));
+  <main>
+    <div class="topbar"><div id="statusText" class="pill">Ready.</div><div id="countText" class="pill">0 results</div><div id="requestText" class="pill">0 requests</div></div>
+    <div class="tablewrap"><table><thead><tr id="headRow"></tr></thead><tbody id="body"></tbody></table></div>
+    <div id="details" class="details muted">Select a row to see details, attachment names, and links.</div>
+    <div id="log" class="log"></div>
+  </main>
+</div>
 
-    const state = {
-      stop: false,
-      requests: 0,
-      results: [],
-      visible: [],
-      seen: new Set(),
-      sortColumn: 'postedDate',
-      sortReverse: true,
-      selectedNoticeId: ''
+<script>
+(() => {
+  'use strict';
+  const STORAGE_PROXY = 'samgovsearch.proxyBase';
+  const DEFAULT_PROXY = 'https://samgovsearch.spotterdeer.workers.dev';
+  const ALL_DATE_START = new Date(2018, 0, 1);
+  const MAX_WINDOW_DAYS = 364;
+  const cols = [
+    ['keyword','Keyword'], ['matchedBy','Matched By'], ['postedDate','Posted'], ['title','Title'], ['solicitationNumber','Solicitation'], ['noticeType','Type'], ['organization','Organization'], ['naicsCode','NAICS'], ['classificationCode','PSC'], ['attachmentCount','Att'], ['attachmentTotalMbText','MB'], ['uiLink','SAM']
+  ];
+  const ids = ['proxyNote','proxyBase','testProxyBtn','saveProxyBtn','terms','naicsMode','postedFrom','postedTo','allDates','status','ptype','mode','maxResults','pageSize','delayMs','enrichResources','requireAttachments','minCount','minMb','titleFilter','hideFilter','searchBtn','stopBtn','exportBtn','clearBtn','statusText','countText','requestText','headRow','body','details','log'];
+  const el = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
+  const state = { stop:false, requests:0, results:[], visible:[], seen:new Set(), sortColumn:'postedDate', sortReverse:true };
+
+  function ntext(v) { return v === undefined || v === null ? '' : String(v).trim(); }
+  function pad(n) { return String(n).padStart(2, '0'); }
+  function fmtDate(d) { return `${pad(d.getMonth()+1)}/${pad(d.getDate())}/${d.getFullYear()}`; }
+  function addDays(d, days) { const x = new Date(d); x.setDate(x.getDate() + days); return x; }
+  function html(v) { return ntext(v).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function stripHtml(v) { const d = document.createElement('div'); d.innerHTML = ntext(v); return ntext(d.textContent || d.innerText || ''); }
+  function log(msg) { el.log.textContent += `[${new Date().toLocaleTimeString()}] ${msg}\n`; el.log.scrollTop = el.log.scrollHeight; }
+  function status(msg) { el.statusText.textContent = msg; }
+  function count() { el.countText.textContent = `${state.visible.length} shown / ${state.results.length} total`; el.requestText.textContent = `${state.requests} requests`; el.exportBtn.disabled = state.visible.length === 0; }
+  function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
+  function proxyBase() { return el.proxyBase.value.replace(/\/+$/, ''); }
+  function endpoint(path, params) { const url = new URL(proxyBase() + path); Object.entries(params || {}).forEach(([k,v]) => { if (v !== '' && v !== null && v !== undefined) url.searchParams.set(k, v); }); return url; }
+
+  async function proxyJson(path, params) {
+    state.requests += 1; count();
+    const r = await fetch(endpoint(path, params), { headers:{Accept:'application/json'}, cache:'no-store' });
+    const text = await r.text();
+    if (!r.ok) throw new Error(`Proxy HTTP ${r.status}: ${text.slice(0, 400)}`);
+    try { return JSON.parse(text); } catch { throw new Error(`Proxy returned non JSON: ${text.slice(0, 200)}`); }
+  }
+
+  async function testProxy() {
+    el.proxyNote.className = 'note warn';
+    el.proxyNote.textContent = 'Testing proxy...';
+    try {
+      const data = await proxyJson('/health');
+      if (!data.ok) throw new Error(data.error || 'health check failed');
+      el.proxyNote.className = 'note ok';
+      el.proxyNote.textContent = `Proxy connected: ${proxyBase()}`;
+      log(`Proxy health OK: ${proxyBase()}`);
+      return true;
+    } catch (err) {
+      el.proxyNote.className = 'note bad';
+      el.proxyNote.textContent = `Proxy not reachable: ${err.message || err}`;
+      return false;
+    }
+  }
+
+  function saveProxy() { localStorage.setItem(STORAGE_PROXY, proxyBase()); log(`Saved proxy URL: ${proxyBase()}`); testProxy(); }
+  function parseDate(text, name) { const m = ntext(text).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/); if (!m) throw new Error(`${name} must be MM/DD/YYYY.`); const d = new Date(+m[3], +m[1]-1, +m[2]); if (d.getMonth() !== +m[1]-1 || d.getDate() !== +m[2]) throw new Error(`${name} is invalid.`); return d; }
+  function windows() { if (!el.allDates.checked) { const a = parseDate(el.postedFrom.value, 'Posted From'); const b = parseDate(el.postedTo.value, 'Posted To'); if (b < a) throw new Error('Posted To must be same as or later than Posted From.'); if ((b-a)/86400000 > MAX_WINDOW_DAYS) throw new Error('Date range must be 364 days or less unless all date ranges is checked.'); return [[fmtDate(a), fmtDate(b)]]; } const out = []; const end = new Date(); for (let s = new Date(ALL_DATE_START); s <= end;) { const e = addDays(s, MAX_WINDOW_DAYS) > end ? end : addDays(s, MAX_WINDOW_DAYS); out.push([fmtDate(s), fmtDate(e)]); s = addDays(e, 1); } return out; }
+  function batchTerms() { const raw = el.terms.value.replace(/,/g, '\n').split(/\r?\n/).map((x) => x.trim()).filter(Boolean); const seen = new Set(); const out = []; let dupes = 0; raw.forEach((t) => { const k = t.toLowerCase().replace(/\s+/g, ' '); if (seen.has(k)) dupes += 1; else { seen.add(k); out.push(t); } }); return { out, dupes }; }
+  function isNaics(t) { return /^\d{2,6}$/.test(ntext(t)); }
+  function variants(term) { const mode = el.mode.value.toLowerCase(); if (el.naicsMode.checked && isNaics(term)) return [{ matchedBy:'naics', naics:term }]; if (mode === 'title') return [{ matchedBy:'title', q:term }]; if (mode === 'solicitation number') return [{ matchedBy:'solnum', q:term }]; if (mode === 'notice id') return [{ matchedBy:'noticeid', noticeId:term }]; if (mode === 'title + solicitation number') return [{ matchedBy:'title', q:term }, { matchedBy:'solnum', q:term }]; const v = [{ matchedBy:'title', q:term }]; if (/\d/.test(term)) v.push({ matchedBy:'solnum', q:term }); const hex = term.replace(/[^A-Fa-f0-9]/g, ''); if (hex.length >= 20 && /^[A-Fa-f0-9]+$/.test(hex)) v.push({ matchedBy:'noticeid', noticeId:term }); return v; }
+
+  function resultsFrom(data) { if (data?._embedded && Array.isArray(data._embedded.results)) return data._embedded.results.filter(Boolean); for (const k of ['results','opportunitiesData','items']) if (Array.isArray(data[k])) return data[k].filter(Boolean); return []; }
+  function totalFrom(data, fallback) { const vals = [data?.page?.totalElements, data?.totalRecords, data?.totalElements, data?.total, data?.count]; for (const v of vals) { const n = parseInt(String(v ?? '').replace(/,/g, ''), 10); if (Number.isFinite(n)) return n; } return fallback; }
+  function safe(obj, path) { let cur = obj; for (const p of path) { if (!cur || typeof cur !== 'object') return ''; cur = cur[p]; } return cur ?? ''; }
+  function noticeId(o) { return ntext(o.noticeId || o.noticeID || o._id || o.id || o.opportunityId); }
+  function org(o) { const h = o.organizationHierarchy || o.organizationHierarchyName; if (Array.isArray(h)) { const parts = h.map((p) => typeof p === 'object' ? ntext(p.name || p.value) : ntext(p)).filter(Boolean); if (parts.length) return parts.join(' > '); } return ntext(o.fullParentPathName || o.organizationName || o.officeName || o.agencyName); }
+  function typeVal(o) { const value = ntext(safe(o, ['type','value'])); const code = ntext(safe(o, ['type','code'])); return value && code ? `${code} ${value}` : value || code || ntext(o.type); }
+  function desc(o) { if (Array.isArray(o.descriptions) && o.descriptions.length) { const first = o.descriptions[0]; return typeof first === 'object' ? stripHtml(first.content || first.description || '') : stripHtml(first); } return stripHtml(o.description || o.descriptionText || ''); }
+
+  function parseResources(data) {
+    const links = [], names = [];
+    let totalBytes = 0, unknownCount = 0, nonPublicCount = 0;
+    const lists = data?._embedded?.opportunityAttachmentList;
+    if (Array.isArray(lists)) for (const group of lists) for (const a of (Array.isArray(group.attachments) ? group.attachments : [])) {
+      if (!a || ntext(a.deletedFlag) === '1') continue;
+      const rid = ntext(a.resourceId); if (!rid) continue;
+      names.push(ntext(a.name || a.filename || 'unknown'));
+      links.push(`${proxyBase()}/download/${encodeURIComponent(rid)}`);
+      if (ntext(a.accessLevel || 'public').toLowerCase() !== 'public') nonPublicCount += 1;
+      const size = Number(String(a.size ?? '').replace(/,/g, ''));
+      if (Number.isFinite(size)) totalBytes += size; else unknownCount += 1;
+    }
+    return { links, names, totalBytes, unknownCount, nonPublicCount };
+  }
+
+  function normalize(o, meta = {}) {
+    const data2 = meta.details?.data2 && typeof meta.details.data2 === 'object' ? meta.details.data2 : {};
+    const r = meta.resources || { links:[], names:[], totalBytes:0, unknownCount:0, nonPublicCount:0 };
+    const id = noticeId(o) || noticeId(data2);
+    let naics = ntext(o.naicsCode);
+    const naicsList = data2.naics;
+    if (!naics && Array.isArray(naicsList) && naicsList[0] && typeof naicsList[0] === 'object') { const codes = naicsList[0].code; naics = Array.isArray(codes) ? ntext(codes[0]) : ntext(codes); }
+    const totalMb = r.totalBytes ? r.totalBytes / 1048576 : null;
+    const notes = [];
+    if (r.unknownCount) notes.push(`${r.unknownCount} unknown size`);
+    if (r.nonPublicCount) notes.push(`${r.nonPublicCount} non public`);
+    if (meta.resources) notes.push('resources endpoint');
+    return {
+      keyword:meta.keyword || '', matchedBy:meta.matchedBy || '', noticeId:id, title:ntext(o.title || data2.title), solicitationNumber:ntext(o.solicitationNumber || data2.solicitationNumber), noticeType:typeVal(o) || typeVal(data2),
+      postedDate:ntext(o.publishDate || o.postedDate || data2.postedDate).replace(/T.*$/, ''), responseDeadline:ntext(o.responseDate || o.responseDeadLine || data2.responseDeadLine), active:ntext(('isActive' in o) ? o.isActive : data2.active),
+      organization:org(o) || org(data2), naicsCode:naics, classificationCode:ntext(o.classificationCode || o.pscCode || data2.classificationCode), uiLink:id ? `https://sam.gov/opp/${encodeURIComponent(id)}/view` : '',
+      resourceLinks:r.links, attachmentNames:r.names, attachmentCount:r.links.length, attachmentTotalMb:totalMb, attachmentTotalMbText:totalMb === null ? '' : totalMb.toFixed(3), attachmentSizeNote:notes.join('; '), description:desc(o) || desc(data2)
     };
+  }
 
-    function pad2(n) { return String(n).padStart(2, '0'); }
-    function fmtDate(d) { return `${pad2(d.getMonth() + 1)}/${pad2(d.getDate())}/${d.getFullYear()}`; }
-    function parseDate(text, name) {
-      const m = String(text || '').trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-      if (!m) throw new Error(`${name} must be MM/DD/YYYY.`);
-      const d = new Date(Number(m[3]), Number(m[1]) - 1, Number(m[2]));
-      if (Number.isNaN(d.getTime()) || d.getMonth() !== Number(m[1]) - 1 || d.getDate() !== Number(m[2])) {
-        throw new Error(`${name} is not a valid date.`);
-      }
-      return d;
-    }
-    function addDays(d, days) { const c = new Date(d); c.setDate(c.getDate() + days); return c; }
-    function normalizeText(v) { return v === null || v === undefined ? '' : String(v).trim(); }
-    function bytesToMb(n) { return typeof n === 'number' && Number.isFinite(n) ? n / (1024 * 1024) : null; }
-    function escapeHtml(text) {
-      return normalizeText(text).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    }
-    function stripHtml(value) {
-      const div = document.createElement('div');
-      div.innerHTML = normalizeText(value);
-      return normalizeText(div.textContent || div.innerText || '');
-    }
-    function log(message) {
-      const stamp = new Date().toLocaleTimeString();
-      els.log.textContent += `[${stamp}] ${message}\n`;
-      els.log.scrollTop = els.log.scrollHeight;
-    }
-    function setStatus(text) { els.statusText.textContent = text; }
-    function updateCounters() {
-      els.countText.textContent = `${state.visible.length} shown / ${state.results.length} total`;
-      els.requestText.textContent = `${state.requests} request${state.requests === 1 ? '' : 's'}`;
-      els.exportBtn.disabled = state.visible.length === 0;
-    }
-    function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+  async function enrich(item) {
+    if (!el.enrichResources.checked || !item.noticeId) return item;
+    let resources = null, details = null;
+    try { resources = parseResources(await proxyJson(`/resources/${encodeURIComponent(item.noticeId)}`)); } catch (err) { log(`Resources failed for ${item.noticeId}: ${err.message || err}`); }
+    await sleep(+el.delayMs.value || 0);
+    try { details = await proxyJson(`/details/${encodeURIComponent(item.noticeId)}`); } catch { details = null; }
+    return { ...item, ...normalize(item, { keyword:item.keyword, matchedBy:item.matchedBy, resources, details }) };
+  }
 
-    function queryString(params) {
-      const usp = new URLSearchParams();
-      Object.entries(params).forEach(([k, v]) => {
-        if (v === null || v === undefined || v === '') return;
-        if (Array.isArray(v)) v.forEach(x => usp.append(k, x));
-        else usp.set(k, v);
-      });
-      return usp.toString();
-    }
+  function passes(item, term) { if (el.naicsMode.checked && isNaics(term)) { const n = ntext(item.naicsCode); if (n && n !== term && !n.startsWith(term)) return false; } const minCount = +el.minCount.value || 0; const minMb = +el.minMb.value || 0; if (el.requireAttachments.checked && item.attachmentCount <= 0) return false; if (minCount && item.attachmentCount < minCount) return false; if (minMb && (!item.attachmentTotalMb || item.attachmentTotalMb < minMb)) return false; return true; }
+  function add(item, term) { if (!item.noticeId || state.seen.has(item.noticeId) || !passes(item, term)) return; state.seen.add(item.noticeId); state.results.push(item); applyFilters(); }
 
-    async function fetchJson(url, params = {}) {
-      const qs = queryString(params);
-      const full = qs ? `${url}?${qs}` : url;
-      state.requests += 1;
-      updateCounters();
-      let response;
-      try {
-        response = await fetch(full, { headers: { 'Accept': 'application/json' }, credentials: 'omit', cache: 'no-store' });
-      } catch (err) {
-        throw new Error(`Browser fetch failed. SAM.gov may be blocking cross origin requests from GitHub Pages. ${err.message || err}`);
-      }
-      const text = await response.text();
-      if (!response.ok) throw new Error(`SAM.gov HTTP ${response.status}: ${text.slice(0, 500)}`);
-      try {
-        const data = JSON.parse(text);
-        return data && typeof data === 'object' ? data : {};
-      } catch (err) {
-        throw new Error(`SAM.gov returned non JSON content: ${text.slice(0, 200)}`);
+  async function searchPaged(term, variant, dateWindows) {
+    const maxResults = Math.max(1, Math.min(500, +el.maxResults.value || 100));
+    const pageSize = Math.max(1, Math.min(100, +el.pageSize.value || 100));
+    const out = [];
+    let retrieved = 0;
+    for (const [postedFrom, postedTo] of dateWindows) {
+      for (let page = 0; !state.stop && retrieved < maxResults; page += 1) {
+        const params = { index:'opp', page, mode:'search', sort:'-modifiedDate', size:Math.min(pageSize, maxResults - retrieved), postedFrom, postedTo };
+        if (variant.naics) { params.naics = variant.naics; params.naicsCode = variant.naics; }
+        else params.q = variant.q;
+        if (el.status.value === 'active') params.is_active = 'true'; else if (el.status.value) params.status = el.status.value;
+        if (el.ptype.value) params.opp_type = el.ptype.value;
+        const data = await proxyJson('/search', params);
+        const raw = resultsFrom(data); const total = totalFrom(data, raw.length);
+        log(`${term} ${variant.matchedBy}: page ${page + 1}, ${raw.length} items, total ${total}, ${postedFrom} to ${postedTo}.`);
+        if (!raw.length) break;
+        for (const o of raw) { retrieved += 1; out.push(normalize(o, { keyword:term, matchedBy:variant.matchedBy })); if (retrieved >= maxResults) break; }
+        if ((page * pageSize) + raw.length >= total) break;
+        await sleep(+el.delayMs.value || 0);
       }
     }
+    return out;
+  }
 
-    function parseBatch(raw) {
-      const terms = raw.replace(/,/g, '\n').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-      const seen = new Set();
-      const clean = [];
-      let dupes = 0;
-      for (const term of terms) {
-        const key = term.toLowerCase().replace(/\s+/g, ' ');
-        if (seen.has(key)) { dupes += 1; continue; }
-        seen.add(key);
-        clean.push(term);
+  async function searchNotice(term, id) { const details = await proxyJson(`/details/${encodeURIComponent(id)}`); const data2 = details.data2 && typeof details.data2 === 'object' ? details.data2 : details; return normalize(data2, { details, keyword:term, matchedBy:'noticeid' }); }
+
+  async function runSearch() {
+    state.stop = false; state.requests = 0; state.results = []; state.visible = []; state.seen = new Set(); el.log.textContent = ''; el.details.textContent = 'Select a row to see details, attachment names, and links.'; renderRows(); count();
+    el.searchBtn.disabled = true; el.stopBtn.disabled = false;
+    try {
+      const ok = await testProxy(); if (!ok) throw new Error('Proxy is not connected. Deploy the Worker or fix the Proxy Worker URL.');
+      const { out:terms, dupes } = batchTerms(); if (!terms.length) throw new Error('Enter at least one search term.');
+      const dateWindows = windows(); log(`Starting ${terms.length} term(s). ${dupes} duplicate(s) skipped. Date windows: ${dateWindows.length}.`);
+      for (const term of terms) for (const v of variants(term)) {
+        if (state.stop) break;
+        status(`Searching ${term} by ${v.matchedBy}...`);
+        let items = v.noticeId ? [await searchNotice(term, v.noticeId)] : await searchPaged(term, v, dateWindows);
+        for (let item of items) { if (state.stop) break; item = await enrich(item); add(item, term); await sleep(+el.delayMs.value || 0); }
       }
-      return { terms: clean, rawCount: terms.length, dupes };
-    }
+      status(state.stop ? 'Stopped.' : `Done. ${state.results.length} result(s) found.`);
+    } catch (err) { status(err.message || String(err)); log(`ERROR: ${err.message || err}`); }
+    finally { el.searchBtn.disabled = false; el.stopBtn.disabled = true; count(); }
+  }
 
-    function buildDateWindows() {
-      if (!els.allDates.checked) {
-        const start = parseDate(els.postedFrom.value, 'Posted From');
-        const end = parseDate(els.postedTo.value, 'Posted To');
-        if (end < start) throw new Error('Posted To must be the same as or later than Posted From.');
-        if ((end - start) / 86400000 > MAX_WINDOW_DAYS) throw new Error('SAM.gov date windows cannot be more than 364 days here. Use all date ranges.');
-        return [[fmtDate(start), fmtDate(end)]];
-      }
-      const end = new Date();
-      const windows = [];
-      let start = new Date(ALL_DATE_START);
-      while (start <= end) {
-        const winEnd = addDays(start, MAX_WINDOW_DAYS) > end ? end : addDays(start, MAX_WINDOW_DAYS);
-        windows.push([fmtDate(start), fmtDate(winEnd)]);
-        start = addDays(winEnd, 1);
-      }
-      return windows;
-    }
-
-    function buildVariants(term) {
-      const mode = els.mode.value.toLowerCase();
-      const variants = [];
-      if (mode === 'title') return [{ matchedBy: 'title', query: term }];
-      if (mode === 'solicitation number') return [{ matchedBy: 'solnum', query: term }];
-      if (mode === 'notice id') return [{ matchedBy: 'noticeid', noticeId: term }];
-      if (mode === 'title + solicitation number') return [{ matchedBy: 'title', query: term }, { matchedBy: 'solnum', query: term }];
-      variants.push({ matchedBy: 'title', query: term });
-      if (/\d/.test(term)) variants.push({ matchedBy: 'solnum', query: term });
-      const hex = term.replace(/[^A-Fa-f0-9]/g, '');
-      if (hex.length >= 20 && /^[A-Fa-f0-9]+$/.test(hex)) variants.push({ matchedBy: 'noticeid', noticeId: term });
-      return variants;
-    }
-
-    function isNaicsTerm(term) { return /^\d{2,6}$/.test(term.trim()); }
-
-    function internalSearchResults(data) {
-      if (data && data._embedded && Array.isArray(data._embedded.results)) return data._embedded.results.filter(x => x && typeof x === 'object');
-      for (const key of ['results', 'opportunitiesData', 'items']) {
-        if (Array.isArray(data[key])) return data[key].filter(x => x && typeof x === 'object');
-      }
-      return [];
-    }
-
-    function internalTotalRecords(data, fallback) {
-      const candidates = [data?.page?.totalElements, data?.totalRecords, data?.totalElements, data?.total, data?.count];
-      for (const value of candidates) {
-        const n = parseInt(String(value ?? '').replace(/,/g, ''), 10);
-        if (Number.isFinite(n)) return n;
-      }
-      return fallback;
-    }
-
-    function safeGet(obj, path, fallback = '') {
-      let cur = obj;
-      for (const key of path) {
-        if (!cur || typeof cur !== 'object') return fallback;
-        cur = cur[key];
-      }
-      return cur === null || cur === undefined ? fallback : cur;
-    }
-
-    function organizationName(opp) {
-      const h = opp.organizationHierarchy || opp.organizationHierarchyName;
-      if (Array.isArray(h)) {
-        const names = h.map(part => typeof part === 'object' ? normalizeText(part.name || part.value) : normalizeText(part)).filter(Boolean);
-        if (names.length) return names.join(' > ');
-      }
-      return normalizeText(opp.fullParentPathName || opp.organizationName || opp.officeName || opp.agencyName);
-    }
-
-    function typeValue(opp) {
-      const value = normalizeText(safeGet(opp, ['type', 'value']));
-      const code = normalizeText(safeGet(opp, ['type', 'code']));
-      if (value && code) return `${code} ${value}`;
-      return value || code || normalizeText(opp.type);
-    }
-
-    function noticeId(opp) { return normalizeText(opp.noticeId || opp.noticeID || opp._id || opp.id || opp.opportunityId); }
-
-    function firstDescription(opp) {
-      if (Array.isArray(opp.descriptions) && opp.descriptions.length) {
-        const first = opp.descriptions[0];
-        if (first && typeof first === 'object') return stripHtml(first.content || first.description || '');
-        return stripHtml(first);
-      }
-      return stripHtml(opp.description || opp.descriptionText || '');
-    }
-
-    function parseResources(data) {
-      const links = [], names = [];
-      let totalBytes = 0, unknownCount = 0, nonPublicCount = 0;
-      const lists = data?._embedded?.opportunityAttachmentList;
-      if (Array.isArray(lists)) {
-        for (const group of lists) {
-          const attachments = Array.isArray(group.attachments) ? group.attachments : [];
-          for (const a of attachments) {
-            if (!a || typeof a !== 'object') continue;
-            if (normalizeText(a.deletedFlag) === '1') continue;
-            const resourceId = normalizeText(a.resourceId);
-            if (!resourceId) continue;
-            const name = normalizeText(a.name || a.filename || 'unknown');
-            const access = normalizeText(a.accessLevel || 'public').toLowerCase();
-            if (access && access !== 'public') nonPublicCount += 1;
-            links.push(`${INTERNAL_DOWNLOAD_URL}/${encodeURIComponent(resourceId)}/download`);
-            names.push(name);
-            const size = Number(String(a.size ?? '').replace(/,/g, ''));
-            if (Number.isFinite(size) && size >= 0) totalBytes += size; else unknownCount += 1;
-          }
-        }
-      }
-      return { checked: true, resourceLinks: links, names, totalBytes, unknownCount, nonPublicCount };
-    }
-
-    function normalizeItem(opp, opts = {}) {
-      const details = opts.details || {};
-      const data2 = details.data2 && typeof details.data2 === 'object' ? details.data2 : {};
-      const attachments = opts.attachments || {};
-      const id = noticeId(opp) || noticeId(data2);
-      let naicsCode = normalizeText(opp.naicsCode);
-      const naicsList = data2.naics;
-      if (!naicsCode && Array.isArray(naicsList) && naicsList.length && typeof naicsList[0] === 'object') {
-        const codes = naicsList[0].code;
-        naicsCode = Array.isArray(codes) ? normalizeText(codes[0]) : normalizeText(codes);
-      }
-      const links = Array.isArray(attachments.resourceLinks) ? attachments.resourceLinks : [];
-      const totalMb = bytesToMb(attachments.totalBytes);
-      const notes = [];
-      if (attachments.unknownCount) notes.push(`${attachments.unknownCount} unknown size`);
-      if (attachments.nonPublicCount) notes.push(`${attachments.nonPublicCount} non public`);
-      if (attachments.checked) notes.push('resources endpoint');
-      return {
-        keyword: opts.keyword || '',
-        matchedBy: opts.matchedBy || '',
-        noticeId: id,
-        title: normalizeText(opp.title || data2.title),
-        solicitationNumber: normalizeText(opp.solicitationNumber || data2.solicitationNumber),
-        noticeType: typeValue(opp) || typeValue(data2),
-        postedDate: normalizeText(opp.publishDate || opp.postedDate || data2.postedDate).replace('T00:00:00', ''),
-        responseDeadline: normalizeText(opp.responseDate || opp.responseDeadLine || data2.responseDeadLine),
-        active: normalizeText(('isActive' in opp ? opp.isActive : data2.active)),
-        organization: organizationName(opp) || organizationName(data2),
-        naicsCode,
-        classificationCode: normalizeText(opp.classificationCode || opp.pscCode || data2.classificationCode),
-        uiLink: id ? `https://sam.gov/opp/${encodeURIComponent(id)}/view` : '',
-        resourceLinks: links,
-        attachmentNames: Array.isArray(attachments.names) ? attachments.names : [],
-        attachmentCount: links.length,
-        attachmentTotalMb: totalMb,
-        attachmentTotalMbText: totalMb === null ? '' : totalMb.toFixed(3),
-        attachmentSizeNote: notes.join('; '),
-        description: firstDescription(opp) || firstDescription(data2),
-        source: 'internal website'
-      };
-    }
-
-    async function enrichItem(item) {
-      if (!els.enrichResources.checked || !item.noticeId) return item;
-      let resources = {};
-      let details = {};
-      try {
-        resources = await fetchJson(`${INTERNAL_RESOURCES_URL}/${encodeURIComponent(item.noticeId)}/resources`);
-      } catch (err) {
-        log(`Attachment metadata lookup failed for ${item.noticeId}: ${err.message || err}`);
-      }
-      await sleep(Number(els.delayMs.value || 0));
-      try {
-        details = await fetchJson(`${INTERNAL_DETAILS_URL}/${encodeURIComponent(item.noticeId)}`);
-      } catch (_) {
-        details = {};
-      }
-      const enriched = normalizeItem(item, { attachments: parseResources(resources), details, keyword: item.keyword, matchedBy: item.matchedBy });
-      return { ...item, ...enriched, keyword: item.keyword, matchedBy: item.matchedBy };
-    }
-
-    function passesResultCriteria(item, term) {
-      if (els.naicsMode.checked && isNaicsTerm(term)) {
-        const n = normalizeText(item.naicsCode);
-        if (n && n !== term && !n.startsWith(term)) return false;
-      }
-      const minCount = Number(els.minCount.value || 0);
-      const minMb = Number(els.minMb.value || 0);
-      if (els.requireAttachments.checked && item.attachmentCount <= 0) return false;
-      if (minCount > 0 && item.attachmentCount < minCount) return false;
-      if (minMb > 0 && (item.attachmentTotalMb === null || item.attachmentTotalMb < minMb)) return false;
-      return true;
-    }
-
-    async function searchNoticeId(term, noticeIdValue) {
-      const details = await fetchJson(`${INTERNAL_DETAILS_URL}/${encodeURIComponent(noticeIdValue)}`);
-      const data2 = details.data2 && typeof details.data2 === 'object' ? details.data2 : {};
-      return normalizeItem(data2, { details, keyword: term, matchedBy: 'noticeid' });
-    }
-
-    async function searchPaged(term, variant, dateWindows) {
-      const maxResults = Math.max(1, Math.min(500, Number(els.maxResults.value || 100)));
-      const pageSizeInput = Math.max(1, Math.min(100, Number(els.pageSize.value || 100)));
-      const delay = Math.max(0, Number(els.delayMs.value || 0));
-      const out = [];
-      let retrieved = 0;
-      for (const [postedFrom, postedTo] of dateWindows) {
-        let page = 0;
-        while (!state.stop && retrieved < maxResults) {
-          const pageSize = Math.min(pageSizeInput, maxResults - retrieved);
-          const params = {
-            index: 'opp', page, mode: 'search', sort: '-modifiedDate', size: pageSize,
-            q: variant.query, postedFrom, postedTo
-          };
-          if (els.status.value === 'active') params.is_active = 'true';
-          else if (els.status.value) params.status = els.status.value;
-          if (els.ptype.value) params.opp_type = els.ptype.value;
-          if (els.naicsMode.checked && isNaicsTerm(term)) {
-            params.naics = term;
-            params.naicsCode = term;
-          }
-          const data = await fetchJson(INTERNAL_SEARCH_URL, params);
-          const rawItems = internalSearchResults(data);
-          const total = internalTotalRecords(data, rawItems.length);
-          log(`${term} ${variant.matchedBy}: page ${page + 1}, ${rawItems.length} item(s), total ${total}, ${postedFrom} to ${postedTo}.`);
-          if (!rawItems.length) break;
-          for (const raw of rawItems) {
-            retrieved += 1;
-            out.push(normalizeItem(raw, { keyword: term, matchedBy: variant.matchedBy }));
-            if (retrieved >= maxResults) break;
-          }
-          if (((page * pageSize) + rawItems.length) >= total) break;
-          page += 1;
-          await sleep(delay);
-        }
-      }
-      return out;
-    }
-
-    function addResult(item, term) {
-      if (!item.noticeId) return;
-      if (state.seen.has(item.noticeId)) return;
-      if (!passesResultCriteria(item, term)) return;
-      state.seen.add(item.noticeId);
-      state.results.push(item);
-      applyFilters();
-    }
-
-    async function runSearch() {
-      state.stop = false;
-      state.requests = 0;
-      state.results = [];
-      state.visible = [];
-      state.seen = new Set();
-      els.log.textContent = '';
-      els.details.textContent = 'Select a row to see details, attachment names, and links.';
-      els.searchBtn.disabled = true;
-      els.stopBtn.disabled = false;
-      renderRows();
-      updateCounters();
-      let terms, windows;
-      try {
-        const batch = parseBatch(els.terms.value);
-        terms = batch.terms;
-        if (!terms.length) throw new Error('Enter at least one search term.');
-        windows = buildDateWindows();
-        log(`Starting no API key browser search for ${terms.length} term(s). ${batch.dupes} duplicate(s) skipped.`);
-        if (els.allDates.checked) log(`All date ranges enabled: ${windows.length} window(s).`);
-      } catch (err) {
-        setStatus(err.message || String(err));
-        els.searchBtn.disabled = false;
-        els.stopBtn.disabled = true;
-        return;
-      }
-
-      let corsFailure = false;
-      try {
-        for (const term of terms) {
-          if (state.stop) break;
-          setStatus(`Searching ${term}...`);
-          const variants = buildVariants(term);
-          for (const variant of variants) {
-            if (state.stop) break;
-            try {
-              let items = [];
-              if (variant.noticeId) items = [await searchNoticeId(term, variant.noticeId)];
-              else items = await searchPaged(term, variant, windows);
-              for (let item of items) {
-                if (state.stop) break;
-                item = await enrichItem(item);
-                addResult(item, term);
-                await sleep(Number(els.delayMs.value || 0));
-              }
-            } catch (err) {
-              const msg = err.message || String(err);
-              log(`Search failed for ${term} / ${variant.matchedBy}: ${msg}`);
-              if (/cross origin|CORS|Failed to fetch|Browser fetch/i.test(msg)) corsFailure = true;
-            }
-          }
-        }
-        setStatus(state.stop ? 'Stopped.' : `Done. ${state.results.length} result(s) found.`);
-      } finally {
-        els.searchBtn.disabled = false;
-        els.stopBtn.disabled = true;
-        if (corsFailure && state.results.length === 0) showCorsFallback(terms);
-        updateCounters();
-      }
-    }
-
-    function samSearchLink(term) {
-      const params = new URLSearchParams({ index: 'opp', sort: '-modifiedDate', q: term });
-      return `https://sam.gov/search/?${params.toString()}`;
-    }
-
-    function showCorsFallback(terms) {
-      const links = terms.map(t => `<a href="${escapeHtml(samSearchLink(t))}" target="_blank" rel="noopener">${escapeHtml(t)}</a>`).join('');
-      els.details.innerHTML = `<h2>Browser request blocked</h2><p>SAM.gov did not allow this GitHub Pages origin to read the no key website endpoint. Use these SAM.gov links, or add a no key proxy such as a Cloudflare Worker later.</p><div class="linkrow">${links}</div>`;
-      els.corsNote.classList.add('bad');
-      setStatus('SAM.gov browser fetch was blocked. Fallback links created.');
-    }
-
-    function wildcardToRegex(text) {
-      const escaped = text.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.');
-      return new RegExp(escaped, 'i');
-    }
-
-    function titleMatchesFilter(item) {
-      const title = item.title || '';
-      const show = els.titleFilter.value.trim();
-      if (show) {
-        const terms = show.split(/\s+/).filter(Boolean).map(wildcardToRegex);
-        if (!terms.every(re => re.test(title))) return false;
-      }
-      const hide = els.hideFilter.value.split(',').map(s => s.trim()).filter(Boolean).map(wildcardToRegex);
-      if (hide.some(re => re.test(title))) return false;
-      return true;
-    }
-
-    function applyFilters() {
-      state.visible = state.results.filter(titleMatchesFilter);
-      sortVisible();
-      renderRows();
-      updateCounters();
-    }
-
-    function sortVisible() {
-      const col = state.sortColumn;
-      const factor = state.sortReverse ? -1 : 1;
-      state.visible.sort((a, b) => {
-        let av = a[col], bv = b[col];
-        if (col === 'attachmentCount' || col === 'attachmentTotalMbText') {
-          av = Number(av || 0); bv = Number(bv || 0);
-          return (av - bv) * factor;
-        }
-        return String(av || '').localeCompare(String(bv || ''), undefined, { numeric: true, sensitivity: 'base' }) * factor;
-      });
-    }
-
-    function renderHead() {
-      els.headRow.innerHTML = columns.map(([key, label]) => `<th data-key="${key}">${escapeHtml(label)}${state.sortColumn === key ? (state.sortReverse ? ' ▼' : ' ▲') : ''}</th>`).join('');
-      els.headRow.querySelectorAll('th').forEach(th => th.addEventListener('click', () => {
-        const key = th.dataset.key;
-        if (state.sortColumn === key) state.sortReverse = !state.sortReverse;
-        else { state.sortColumn = key; state.sortReverse = false; }
-        applyFilters();
-      }));
-    }
-
-    function renderRows() {
-      renderHead();
-      els.resultsBody.innerHTML = state.visible.map(item => {
-        const sam = item.uiLink ? `<a href="${escapeHtml(item.uiLink)}" target="_blank" rel="noopener">open</a>` : '';
-        return `<tr data-notice="${escapeHtml(item.noticeId)}">
-          <td>${escapeHtml(item.keyword)}</td><td>${escapeHtml(item.matchedBy)}</td><td>${escapeHtml(item.postedDate)}</td>
-          <td>${escapeHtml(item.title)}</td><td>${escapeHtml(item.solicitationNumber)}</td><td>${escapeHtml(item.noticeType)}</td>
-          <td>${escapeHtml(item.organization)}</td><td>${escapeHtml(item.naicsCode)}</td><td>${escapeHtml(item.classificationCode)}</td>
-          <td>${escapeHtml(item.attachmentCount)}</td><td>${escapeHtml(item.attachmentTotalMbText)}</td><td>${sam}</td>
-        </tr>`;
-      }).join('');
-      els.resultsBody.querySelectorAll('tr').forEach(tr => tr.addEventListener('click', () => showDetails(tr.dataset.notice)));
-    }
-
-    function showDetails(noticeIdValue) {
-      const item = state.results.find(x => x.noticeId === noticeIdValue);
-      if (!item) return;
-      state.selectedNoticeId = noticeIdValue;
-      const attachmentNames = item.attachmentNames && item.attachmentNames.length ? item.attachmentNames.map(escapeHtml).join('<br>') : '<span class="muted">No attachment names loaded.</span>';
-      const resourceLinks = item.resourceLinks && item.resourceLinks.length ? item.resourceLinks.slice(0, 12).map((url, i) => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">resource ${i + 1}</a>`).join('') : '';
-      els.details.innerHTML = `<h2>${escapeHtml(item.title || item.noticeId)}</h2>
-        <div class="small muted">${escapeHtml(item.solicitationNumber)} | ${escapeHtml(item.noticeType)} | ${escapeHtml(item.organization)}</div>
-        <p>${escapeHtml(item.description || 'No description loaded.')}</p>
-        <div class="linkrow">${item.uiLink ? `<a href="${escapeHtml(item.uiLink)}" target="_blank" rel="noopener">Open SAM.gov</a>` : ''}${resourceLinks}</div>
-        <p><strong>Attachments:</strong> ${escapeHtml(item.attachmentCount)} ${item.attachmentSizeNote ? `(${escapeHtml(item.attachmentSizeNote)})` : ''}</p>
-        <div class="small">${attachmentNames}</div>`;
-    }
-
-    function toCsvValue(v) {
-      const text = normalizeText(v).replace(/\r?\n/g, ' ');
-      return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-    }
-    function exportCsv() {
-      const headers = ['Keyword','Matched By','Notice ID','Title','Solicitation Number','Type','Posted Date','Response Deadline','Active','Organization','NAICS','PSC','Attachment Count','Attachment Total MB','Attachment Size Note','SAM Link','Resource Links','Attachment Names'];
-      const rows = state.visible.map(item => [
-        item.keyword, item.matchedBy, item.noticeId, item.title, item.solicitationNumber, item.noticeType, item.postedDate, item.responseDeadline, item.active,
-        item.organization, item.naicsCode, item.classificationCode, item.attachmentCount, item.attachmentTotalMbText, item.attachmentSizeNote, item.uiLink,
-        (item.resourceLinks || []).join(' | '), (item.attachmentNames || []).join(' | ')
-      ]);
-      const csv = [headers, ...rows].map(row => row.map(toCsvValue).join(',')).join('\r\n');
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `samgovsearch_no_api_${new Date().toISOString().slice(0,10)}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    }
-
-    function clearResults() {
-      state.results = [];
-      state.visible = [];
-      state.seen = new Set();
-      state.requests = 0;
-      els.log.textContent = '';
-      els.details.textContent = 'Select a row to see details, attachment names, and links.';
-      setStatus('Ready.');
-      renderRows();
-      updateCounters();
-    }
-
-    function initDates() {
-      const today = new Date();
-      const from = addDays(today, -364);
-      els.postedFrom.value = fmtDate(from);
-      els.postedTo.value = fmtDate(today);
-    }
-
-    els.searchBtn.addEventListener('click', runSearch);
-    els.stopBtn.addEventListener('click', () => { state.stop = true; setStatus('Stopping after current request...'); });
-    els.exportBtn.addEventListener('click', exportCsv);
-    els.clearBtn.addEventListener('click', clearResults);
-    els.titleFilter.addEventListener('input', applyFilters);
-    els.hideFilter.addEventListener('input', applyFilters);
-    els.allDates.addEventListener('change', () => {
-      els.postedFrom.disabled = els.allDates.checked;
-      els.postedTo.disabled = els.allDates.checked;
-    });
-
-    initDates();
-    renderRows();
-    updateCounters();
-  })();
-  </script>
+  function wild(s) { return new RegExp(s.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.'), 'i'); }
+  function titlePass(item) { const title = item.title || ''; const show = el.titleFilter.value.trim(); if (show && !show.split(/\s+/).filter(Boolean).map(wild).every((re) => re.test(title))) return false; const hide = el.hideFilter.value.split(',').map((s) => s.trim()).filter(Boolean).map(wild); return !hide.some((re) => re.test(title)); }
+  function sortVisible() { const col = state.sortColumn, f = state.sortReverse ? -1 : 1; state.visible.sort((a,b) => { if (col === 'attachmentCount' || col === 'attachmentTotalMbText') return ((+a[col] || 0) - (+b[col] || 0)) * f; return String(a[col] || '').localeCompare(String(b[col] || ''), undefined, { numeric:true, sensitivity:'base' }) * f; }); }
+  function applyFilters() { state.visible = state.results.filter(titlePass); sortVisible(); renderRows(); count(); }
+  function renderHead() { el.headRow.innerHTML = cols.map(([k,l]) => `<th data-k="${k}">${html(l)}${state.sortColumn === k ? (state.sortReverse ? ' ▼' : ' ▲') : ''}</th>`).join(''); el.headRow.querySelectorAll('th').forEach((th) => th.onclick = () => { const k = th.dataset.k; if (state.sortColumn === k) state.sortReverse = !state.sortReverse; else { state.sortColumn = k; state.sortReverse = false; } applyFilters(); }); }
+  function renderRows() { renderHead(); el.body.innerHTML = state.visible.map((x) => `<tr data-id="${html(x.noticeId)}"><td>${html(x.keyword)}</td><td>${html(x.matchedBy)}</td><td>${html(x.postedDate)}</td><td>${html(x.title)}</td><td>${html(x.solicitationNumber)}</td><td>${html(x.noticeType)}</td><td>${html(x.organization)}</td><td>${html(x.naicsCode)}</td><td>${html(x.classificationCode)}</td><td>${html(x.attachmentCount)}</td><td>${html(x.attachmentTotalMbText)}</td><td>${x.uiLink ? `<a href="${html(x.uiLink)}" target="_blank" rel="noopener">open</a>` : ''}</td></tr>`).join(''); el.body.querySelectorAll('tr').forEach((tr) => tr.onclick = () => showDetails(tr.dataset.id)); }
+  function showDetails(id) { const x = state.results.find((r) => r.noticeId === id); if (!x) return; const names = x.attachmentNames?.length ? x.attachmentNames.map(html).join('<br>') : '<span class="muted">No attachment names loaded.</span>'; const rlinks = x.resourceLinks?.slice(0, 15).map((u,i) => `<a href="${html(u)}" target="_blank" rel="noopener">resource ${i+1}</a>`).join('') || ''; el.details.innerHTML = `<h2>${html(x.title || x.noticeId)}</h2><div class="small muted">${html(x.solicitationNumber)} | ${html(x.noticeType)} | ${html(x.organization)}</div><p>${html(x.description || 'No description loaded.')}</p><div class="links">${x.uiLink ? `<a href="${html(x.uiLink)}" target="_blank" rel="noopener">Open SAM.gov</a>` : ''}${rlinks}</div><p><strong>Attachments:</strong> ${html(x.attachmentCount)} ${x.attachmentSizeNote ? `(${html(x.attachmentSizeNote)})` : ''}</p><div class="small">${names}</div>`; }
+  function csvVal(v) { const t = ntext(v).replace(/\r?\n/g, ' '); return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; }
+  function exportCsv() { const head = ['Keyword','Matched By','Notice ID','Title','Solicitation Number','Type','Posted Date','Response Deadline','Active','Organization','NAICS','PSC','Attachment Count','Attachment Total MB','Attachment Size Note','SAM Link','Resource Links','Attachment Names']; const rows = state.visible.map((x) => [x.keyword,x.matchedBy,x.noticeId,x.title,x.solicitationNumber,x.noticeType,x.postedDate,x.responseDeadline,x.active,x.organization,x.naicsCode,x.classificationCode,x.attachmentCount,x.attachmentTotalMbText,x.attachmentSizeNote,x.uiLink,(x.resourceLinks||[]).join(' | '),(x.attachmentNames||[]).join(' | ')]); const csv = [head, ...rows].map((r) => r.map(csvVal).join(',')).join('\r\n'); const url = URL.createObjectURL(new Blob([csv], { type:'text/csv;charset=utf-8' })); const a = document.createElement('a'); a.href = url; a.download = `samgovsearch_${new Date().toISOString().slice(0,10)}.csv`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); }
+  function clear() { state.results = []; state.visible = []; state.seen = new Set(); state.requests = 0; el.log.textContent = ''; el.details.textContent = 'Select a row to see details, attachment names, and links.'; status('Ready.'); renderRows(); count(); }
+  function init() { const saved = localStorage.getItem(STORAGE_PROXY); el.proxyBase.value = saved || DEFAULT_PROXY; const today = new Date(); el.postedFrom.value = fmtDate(addDays(today, -364)); el.postedTo.value = fmtDate(today); el.allDates.onchange = () => { el.postedFrom.disabled = el.allDates.checked; el.postedTo.disabled = el.allDates.checked; }; el.searchBtn.onclick = runSearch; el.stopBtn.onclick = () => { state.stop = true; status('Stopping after current request...'); }; el.exportBtn.onclick = exportCsv; el.clearBtn.onclick = clear; el.testProxyBtn.onclick = testProxy; el.saveProxyBtn.onclick = saveProxy; el.titleFilter.oninput = applyFilters; el.hideFilter.oninput = applyFilters; renderRows(); count(); testProxy(); }
+  init();
+})();
+</script>
 </body>
 </html>
