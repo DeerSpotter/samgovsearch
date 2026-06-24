@@ -20,6 +20,7 @@ SAM_ACCOUNT_DETAILS_URL = "https://sam.gov/profile/details"
 SAM_API_DOCS_URL = "https://open.gsa.gov/api/get-opportunities-public-api/"
 DOWNLOAD_TIMEOUT_SECONDS = 180
 DOWNLOAD_CHUNK_BYTES = 1024 * 1024
+WEBSITE_ZIP_TIMEOUT_MS = 90000
 
 
 class SamGovSearchApp(unified.UnifiedSamGovSearchApp):
@@ -72,8 +73,8 @@ class SamGovSearchApp(unified.UnifiedSamGovSearchApp):
         ttk.Label(
             download_frame,
             text=(
-                "Select one result row, then download its known public attachments. "
-                "Internal and Hybrid modes usually include attachment names and sizes."
+                "Select one result row. The app tries SAM.gov's Download All ZIP method first, "
+                "then falls back to individual public attachment links."
             ),
             wraplength=360,
         ).grid(row=1, column=0, sticky="w", pady=(5, 0))
@@ -309,15 +310,6 @@ class SamGovSearchApp(unified.UnifiedSamGovSearchApp):
             messagebox.showinfo("No Result Selected", "Select one result row before downloading attachments.")
             return
 
-        links = list(getattr(result, "resource_links", []) or [])
-        if not links:
-            messagebox.showinfo(
-                "No Attachments Found",
-                "The selected result does not have known downloadable attachment links.\n\n"
-                "Website/Internal or Hybrid mode usually gives the best attachment metadata.",
-            )
-            return
-
         folder = filedialog.askdirectory(title="Choose folder for SAM.gov attachments")
         if not folder:
             return
@@ -327,11 +319,47 @@ class SamGovSearchApp(unified.UnifiedSamGovSearchApp):
         )
         target_folder.mkdir(parents=True, exist_ok=True)
 
+        notice_id = str(getattr(result, "notice_id", "") or "").strip()
+        links = list(getattr(result, "resource_links", []) or [])
+        zip_error = ""
+
+        if notice_id:
+            self.status_var_text.set("Trying SAM.gov Download All ZIP method...")
+            self.update_idletasks()
+            try:
+                zip_path = self._download_samgov_website_zip(result, target_folder)
+                self._log(f"Downloaded SAM.gov Download All ZIP: {zip_path}")
+                try:
+                    os.startfile(str(target_folder))  # type: ignore[attr-defined]
+                except Exception:
+                    pass
+                messagebox.showinfo(
+                    "Download Complete",
+                    "Downloaded the SAM.gov Download All ZIP for the selected result.\n\n"
+                    f"File:\n{zip_path}",
+                )
+                self.status_var_text.set("Downloaded SAM.gov Download All ZIP for selected result.")
+                return
+            except Exception as exc:
+                zip_error = str(exc)
+                self._log(f"SAM.gov Download All ZIP method unavailable: {zip_error}")
+
+        if not links:
+            detail = (
+                "The selected result does not have known individual attachment links."
+                if not zip_error else
+                "The SAM.gov Download All ZIP method failed and the selected result does not have known individual attachment links."
+            )
+            if zip_error:
+                detail += f"\n\nZIP method error:\n{zip_error}"
+            messagebox.showinfo("No Attachments Found", detail)
+            return
+
         attachment_names = self._attachment_names_for_result(result)
         saved_paths: List[Path] = []
         failures: List[str] = []
 
-        self.status_var_text.set(f"Downloading {len(links)} attachment(s)...")
+        self.status_var_text.set(f"Downloading {len(links)} individual attachment(s)...")
         self.update_idletasks()
 
         for index, url in enumerate(links, start=1):
@@ -357,7 +385,9 @@ class SamGovSearchApp(unified.UnifiedSamGovSearchApp):
             except Exception:
                 pass
 
-        summary = f"Downloaded {len(saved_paths)} of {len(links)} attachment(s).\n\nFolder:\n{target_folder}"
+        summary = f"Downloaded {len(saved_paths)} of {len(links)} individual attachment(s).\n\nFolder:\n{target_folder}"
+        if zip_error:
+            summary += f"\n\nSAM.gov ZIP method was tried first but was unavailable:\n{zip_error}"
         if failures:
             summary += "\n\nFailures:\n" + "\n".join(failures[:8])
             if len(failures) > 8:
@@ -366,7 +396,133 @@ class SamGovSearchApp(unified.UnifiedSamGovSearchApp):
         else:
             messagebox.showinfo("Download Complete", summary)
 
-        self.status_var_text.set(f"Downloaded {len(saved_paths)} attachment(s) for selected result.")
+        self.status_var_text.set(f"Downloaded {len(saved_paths)} individual attachment(s) for selected result.")
+
+    def _download_samgov_website_zip(self, result: Any, target_folder: Path) -> Path:
+        notice_id = str(getattr(result, "notice_id", "") or "").strip()
+        if not notice_id:
+            raise RuntimeError("No SAM.gov notice ID is available for the selected result.")
+
+        try:
+            from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+            from playwright.sync_api import sync_playwright
+        except Exception as exc:
+            raise RuntimeError(
+                "Website ZIP download requires Playwright. Install it with:\n\n"
+                "py -3 -m pip install playwright\n"
+                "py -3 -m playwright install chromium"
+            ) from exc
+
+        ui_link = str(getattr(result, "ui_link", "") or "").strip() or f"https://sam.gov/opp/{notice_id}/view"
+        zip_base_name = self._safe_filename(
+            f"{getattr(result, 'solicitation_number', '') or notice_id}_samgov_download_all.zip"
+        )
+        zip_target = self._unique_path(target_folder / zip_base_name)
+
+        user_agent = (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/120.0.0.0 Safari/537.36"
+        )
+
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch(headless=True)
+            context = browser.new_context(accept_downloads=True, user_agent=user_agent)
+            page = context.new_page()
+            try:
+                page.goto(ui_link, wait_until="domcontentloaded", timeout=WEBSITE_ZIP_TIMEOUT_MS)
+                self._click_download_all_attachments(page, PlaywrightTimeoutError, zip_target)
+                href = self._wait_for_generated_zip_href(page, PlaywrightTimeoutError)
+                return self._download_generated_zip_with_playwright(page, href, zip_target)
+            finally:
+                context.close()
+                browser.close()
+
+    def _click_download_all_attachments(self, page: Any, timeout_error_type: Any, zip_target: Path) -> Optional[Path]:
+        selectors = [
+            "a:has-text('Download All Attachments/Links')",
+            "button:has-text('Download All Attachments/Links')",
+            "text=Download All Attachments/Links",
+        ]
+        last_error: Optional[Exception] = None
+
+        for selector in selectors:
+            locator = page.locator(selector).first
+            try:
+                locator.wait_for(state="visible", timeout=WEBSITE_ZIP_TIMEOUT_MS)
+                try:
+                    with page.expect_download(timeout=5000) as download_info:
+                        locator.click(timeout=20000)
+                    download = download_info.value
+                    suggested = self._safe_filename(download.suggested_filename or zip_target.name)
+                    final_path = self._unique_path(zip_target.with_name(suggested))
+                    download.save_as(str(final_path))
+                    return final_path
+                except timeout_error_type:
+                    # SAM.gov normally injects a short-lived S3 ZIP link into the page
+                    # instead of starting the download immediately. The click still happened.
+                    return None
+            except Exception as exc:
+                last_error = exc
+                continue
+
+        raise RuntimeError(
+            "Could not find the SAM.gov 'Download All Attachments/Links' control on the opportunity page. "
+            f"Last error: {last_error}"
+        )
+
+    def _wait_for_generated_zip_href(self, page: Any, timeout_error_type: Any) -> str:
+        selectors = [
+            "a[href*='iae-fbo-attachments.s3.amazonaws.com'][href*='.zip']",
+            "a[href*='.zip'][href*='X-Amz-Signature']",
+            "a[href*='X-Amz-Signature']",
+        ]
+        last_error: Optional[Exception] = None
+
+        for selector in selectors:
+            locator = page.locator(selector).first
+            try:
+                locator.wait_for(state="attached", timeout=WEBSITE_ZIP_TIMEOUT_MS)
+                href = str(locator.get_attribute("href") or "").strip()
+                if href:
+                    return href
+            except Exception as exc:
+                last_error = exc
+                continue
+
+        # Some SAM.gov renders put the link text near a "Download Link" label.
+        try:
+            html = page.content()
+            match = re.search(r'href="([^"]*X-Amz-Signature[^"]*)"', html)
+            if match:
+                return match.group(1).replace("&amp;", "&")
+        except Exception as exc:
+            last_error = exc
+
+        raise RuntimeError(
+            "SAM.gov did not generate a Download All ZIP link. "
+            "Controlled-only attachments may require signing in on SAM.gov. "
+            f"Last error: {last_error}"
+        )
+
+    def _download_generated_zip_with_playwright(self, page: Any, href: str, target_path: Path) -> Path:
+        # SAM.gov pre-signed ZIP URLs can expire in only a few seconds, so download
+        # with the page request context immediately after the link is generated.
+        response = page.request.get(href, timeout=DOWNLOAD_TIMEOUT_SECONDS * 1000)
+        if not response.ok:
+            body = ""
+            try:
+                body = response.text()[:250]
+            except Exception:
+                body = ""
+            raise RuntimeError(f"Generated SAM.gov ZIP link returned HTTP {response.status}: {body}")
+
+        headers = {str(key).lower(): value for key, value in response.headers.items()}
+        header_name = self._filename_from_content_disposition(headers.get("content-disposition", ""))
+        final_path = self._unique_path(target_path.with_name(self._safe_filename(header_name))) if header_name else target_path
+        final_path.parent.mkdir(parents=True, exist_ok=True)
+        final_path.write_bytes(response.body())
+        return final_path
 
     def _attachment_names_for_result(self, result: Any) -> List[str]:
         notice_id = getattr(result, "notice_id", "")
@@ -476,7 +632,7 @@ class SamGovSearchApp(unified.UnifiedSamGovSearchApp):
     @staticmethod
     def _safe_filename(value: str, max_length: int = 160) -> str:
         name = str(value or "").strip()
-        name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", name)
+        name = re.sub(r'[:<>"/\\|?*\x00-\x1f]', "_", name)
         name = re.sub(r"\s+", " ", name).strip(" .")
         if not name:
             name = "attachment"
