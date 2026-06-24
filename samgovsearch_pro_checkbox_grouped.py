@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Iterable
+from typing import Iterable
 import tkinter as tk
 from tkinter import ttk
 
@@ -8,13 +8,13 @@ from samgovsearch_pro_initial_match_toggle import SamGovSearchProInitialMatchTog
 
 
 class SamGovSearchProCheckboxGroupedApp(SamGovSearchProInitialMatchToggleApp):
-    """Final launcher target with main checkboxes grouped after filters."""
+    """Final launcher target with main checkboxes grouped near search options."""
 
     def _build_left_panel(self, left_panel: ttk.Frame) -> None:
         super()._build_left_panel(left_panel)
-        self._group_search_checkboxes_after_filters(left_panel)
+        self._group_search_checkboxes_near_search_options(left_panel)
 
-    def _group_search_checkboxes_after_filters(self, left_panel: ttk.Frame) -> None:
+    def _group_search_checkboxes_near_search_options(self, left_panel: ttk.Frame) -> None:
         # Hide the scattered checkbox controls created by older UI layers. Their
         # variables and command methods are reused below so behavior is unchanged.
         self._hide_checkbutton_by_text(left_panel, "Search all date ranges")
@@ -33,13 +33,14 @@ class SamGovSearchProCheckboxGroupedApp(SamGovSearchProInitialMatchToggleApp):
         self._hide_labelframe_by_text(left_panel, "Cache Options")
         self._hide_labelframe_by_text(left_panel, "Initial Result Matching")
 
-        # Move sections that used to sit immediately after the SQLite filter down
-        # below the grouped checkboxes.
+        # Keep lower utility sections below the filter/index area.
         self._regrid_labelframe_by_text(left_panel, "Cache / Behavior", row=17)
         self._regrid_labelframe_by_text(left_panel, "Download Options", row=18)
 
         frame = ttk.LabelFrame(left_panel, text="Search Checkboxes", padding=8)
-        frame.grid(row=16, column=0, sticky="ew", pady=(8, 0))
+        # Put this immediately under SAM.gov Search Options and above the
+        # attachment filter fields / search-export controls.
+        frame.grid(row=4, column=0, sticky="ew", pady=(0, 8))
         frame.columnconfigure(0, weight=1)
 
         ttk.Checkbutton(
@@ -78,7 +79,7 @@ class SamGovSearchProCheckboxGroupedApp(SamGovSearchProInitialMatchToggleApp):
         ttk.Label(
             frame,
             text=(
-                "Grouped here so all run-changing toggles are directly below the result filters. "
+                "Grouped here so all run-changing toggles are right below SAM.gov Search Options. "
                 "Strict initial matching is off by default so searches behave like SAM.gov unless enabled."
             ),
             wraplength=330,
