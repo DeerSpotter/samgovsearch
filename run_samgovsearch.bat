@@ -8,12 +8,13 @@ echo.
 echo SAM.gov Search Launcher
 echo =======================
 echo Launches the unified responsive UI with Website/Internal, Official API,
-echo Hybrid modes, settings, sortable columns, result filtering, exclusion filtering,
-echo SQLite local index, cache manager, enrichment view, retry settings, and attachment downloads.
+echo Hybrid modes, settings, sortable columns, advanced result filtering,
+echo exclusion filtering, SQLite local index, cache manager, enrichment view,
+echo retry settings, and attachment downloads.
 echo.
 
 set "PYTHON_CMD="
-set "APP_SCRIPT=samgovsearch_pro_exclusions.py"
+set "APP_SCRIPT=samgovsearch_pro_search_help.py"
 
 where py >nul 2>nul
 if not errorlevel 1 (
