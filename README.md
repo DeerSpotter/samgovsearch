@@ -69,6 +69,7 @@ If `SAM_API_KEY` is not set, Hybrid mode can still run as internal-only enrichme
 - Settings button to paste and save `SAM_API_KEY` to the Windows user environment.
 - Settings button links to SAM.gov account details and the official SAM.gov API docs.
 - Click result column headers to sort ascending or descending.
+- Download known public attachments for the selected result row.
 - Optional checkbox: search all date ranges.
 - Optional checkbox: search all statuses.
 - Optional filter: only show opportunities with attachments.
@@ -164,6 +165,26 @@ Click any result column header to sort the visible results.
 - The selected column shows an up or down arrow.
 
 Sorting reorders the internal result list too, so double clicking a sorted row still opens the correct SAM.gov opportunity link.
+
+## Downloading attachments
+
+Select one result row and click:
+
+```text
+Download Attachments for Selected Result
+```
+
+The app will ask for a folder, create a subfolder using the solicitation number, notice ID, or title, then download every known attachment link for that result.
+
+Website/Internal and Hybrid modes usually provide the best attachment metadata because they call:
+
+```text
+https://sam.gov/api/prod/opps/v3/opportunities/{notice_id}/resources
+```
+
+That endpoint can expose attachment names, resource IDs, and sizes. Official API mode can still download from `resourceLinks` when those links are present. If `SAM_API_KEY` is set, the downloader will also retry SAM.gov links with the key appended when needed.
+
+Downloaded filenames are sanitized for Windows and duplicate names are automatically numbered.
 
 ## Local cache and index
 
