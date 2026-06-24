@@ -5,7 +5,7 @@ title SAM.gov Browser Search
 
 echo.
 echo SAM.gov Browser Search Launcher
-echo Browser mode uses an internal browser. Hybrid enrichment uses SAM_API_KEY only after visible results are extracted.
+echo Browser mode uses an internal browser. Hybrid enrichment uses cached API data first, then SAM_API_KEY only for uncached extracted results.
 echo.
 
 set "PYTHON_CMD="
@@ -23,7 +23,10 @@ if not defined PYTHON_CMD (
     exit /b 1
 )
 
-set "APP_SCRIPT=samgovsearch_browser_hybrid.py"
+set "APP_SCRIPT=samgovsearch_browser_hybrid_cached.py"
+if not exist "%APP_SCRIPT%" (
+    set "APP_SCRIPT=samgovsearch_browser_hybrid.py"
+)
 if not exist "%APP_SCRIPT%" (
     set "APP_SCRIPT=samgovsearch_browser.py"
 )
