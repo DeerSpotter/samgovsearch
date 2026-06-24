@@ -5,8 +5,8 @@ This folder contains the GitHub Pages front end for the hosted SAM.gov Search to
 It is a real hosted tool architecture, not just a static fallback page:
 
 - GitHub Pages serves `docs/index.html` from this repo.
-- A Cloudflare Worker relays the no key SAM.gov website/internal endpoints.
-- The browser calls the Worker, so GitHub Pages is not blocked by SAM.gov CORS.
+- The existing OSIRIS Cloudflare Worker now exposes a SAM.gov proxy route at `/samgov`.
+- The browser calls the OSIRIS Worker route, so GitHub Pages is not blocked by SAM.gov CORS.
 - No `SAM_API_KEY` is used anywhere in this hosted version.
 
 ## What it does
@@ -38,24 +38,28 @@ https://deerspotter.github.io/samgovsearch/
 
 ### Worker proxy
 
-The active Worker is deployed from the OSIRIS repo because that repo already has the Cloudflare Worker path working:
+The active proxy is now part of the existing OSIRIS Worker entry point:
 
 ```text
-https://github.com/DeerSpotter/osiris-v2/tree/master/workers/samgov
+https://github.com/DeerSpotter/osiris-v2/blob/master/workers/osiris-flight-proxy/src/worker.ts
 ```
 
-Worker files in `osiris-v2`:
+The OSIRIS Worker config now points to that wrapper entry point:
 
 ```text
-workers/samgov/samgov-proxy-worker.js
-workers/samgov/wrangler.toml
-.github/workflows/deploy-samgov-worker.yml
+https://github.com/DeerSpotter/osiris-v2/blob/master/wrangler.toml
 ```
 
-Default expected Worker URL:
+Default Worker route used by the SAM.gov Search page:
 
 ```text
-https://samgovsearch.spotterdeer.workers.dev
+https://osiris-v2.spotterdeer.workers.dev/samgov
+```
+
+Health check:
+
+```text
+https://osiris-v2.spotterdeer.workers.dev/samgov/health
 ```
 
 The front end has a **Proxy Worker URL** field. If the Worker URL changes, paste the new URL and click **Save URL**.
@@ -72,25 +76,14 @@ The front end has a **Proxy Worker URL** field. If the Worker URL changes, paste
 
 ## Worker deployment
 
-Deploy the Worker from the OSIRIS repo:
+The separate `samgovsearch` Worker workflow was removed because it required Cloudflare secrets that were not available in GitHub Actions.
+
+The SAM.gov proxy now deploys whenever the existing OSIRIS Worker deployment picks up changes to:
 
 ```text
-https://github.com/DeerSpotter/osiris-v2/actions/workflows/deploy-samgov-worker.yml
-```
-
-Run:
-
-```text
-Deploy SAM.gov Worker
-```
-
-The Worker does not require a SAM.gov key. It only relays public SAM.gov website/internal endpoint responses.
-
-If the deploy fails with `CLOUDFLARE_API_TOKEN` missing, add or repair these secrets in the `osiris-v2` repo:
-
-```text
-CLOUDFLARE_API_TOKEN
-CLOUDFLARE_ACCOUNT_ID
+DeerSpotter/osiris-v2
+wrangler.toml
+workers/osiris-flight-proxy/src/worker.ts
 ```
 
 ## SAM.gov endpoints relayed by the Worker
