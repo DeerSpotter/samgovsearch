@@ -9,7 +9,7 @@ echo SAM.gov Search Launcher
 echo =======================
 
 set "PYTHON_CMD="
-set "APP_SCRIPT=samgovsearch_all_status.py"
+set "APP_SCRIPT=samgovsearch_cached.py"
 
 where py >nul 2>nul
 if not errorlevel 1 (
@@ -31,12 +31,16 @@ if not defined PYTHON_CMD (
 )
 
 if not exist "%APP_SCRIPT%" (
+    set "APP_SCRIPT=samgovsearch_all_status.py"
+)
+
+if not exist "%APP_SCRIPT%" (
     set "APP_SCRIPT=samgovsearch.py"
 )
 
 if not exist "%APP_SCRIPT%" (
     echo ERROR: SAM.gov search Python app was not found next to this BAT file.
-    echo Expected samgovsearch_all_status.py or samgovsearch.py.
+    echo Expected samgovsearch_cached.py, samgovsearch_all_status.py, or samgovsearch.py.
     echo.
     pause
     exit /b 1
