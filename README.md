@@ -59,7 +59,7 @@ If `SAM_API_KEY` is not set, Hybrid mode can still run as internal-only enrichme
 ## Features
 
 - One launcher: `run_samgovsearch.bat`.
-- One desktop UI: `samgovsearch_responsive.py`.
+- One desktop UI: `samgovsearch_filter_cache.py`.
 - Responsive layout: the left options panel scrolls and the right results area resizes when the window is not maximized.
 - Batch search one keyword, part number, solicitation number, or notice ID per line.
 - Duplicate batch entries are removed before searching.
@@ -69,6 +69,9 @@ If `SAM_API_KEY` is not set, Hybrid mode can still run as internal-only enrichme
   - Hybrid Search
 - Settings button to paste and save `SAM_API_KEY` to the Windows user environment.
 - Settings button links to SAM.gov account details and the official SAM.gov API docs.
+- Search within the currently loaded results without running another SAM.gov search.
+- Search within results supports simple text matching plus `*` and `?` wildcards.
+- Optional checkbox: ignore cached searches for the current run while still writing fresh successful responses back to cache.
 - Click result column headers to sort ascending or descending.
 - Download attachments for the selected result row.
   - Tries SAM.gov's website-style **Download All Attachments/Links** ZIP method first.
@@ -81,14 +84,14 @@ If `SAM_API_KEY` is not set, Hybrid mode can still run as internal-only enrichme
   - minimum total attachment size in MB
 - Attachment sizes in internal and hybrid modes come from the SAM.gov internal resources endpoint when available.
 - Local cache/index reuses prior responses before spending new requests.
-- Export results to CSV.
-- Double click a result row to open the SAM.gov opportunity link.
+- Export displayed results to CSV.
+- Double click a displayed result row to open the correct SAM.gov opportunity link.
 
 ## Requirements
 
 - Python 3.10 or newer recommended.
 - Tkinter. This is included with the standard Windows Python installer.
-- No third-party Python packages are required for searching, sorting, caching, CSV export, or individual attachment downloads.
+- No third-party Python packages are required for searching, sorting, caching, CSV export, result filtering, or individual attachment downloads.
 - Optional for the SAM.gov website-style ZIP download method: Playwright.
 
 Install the optional ZIP download dependency with:
@@ -111,7 +114,7 @@ run_samgovsearch.bat
 The BAT launcher will:
 
 - start from the repo folder automatically
-- launch `samgovsearch_responsive.py`
+- launch `samgovsearch_filter_cache.py`
 - use `py -3` first, then fall back to `python`
 - warn you if Python is missing
 - allow no-key searching in Website/Internal mode
@@ -168,7 +171,7 @@ For the current PowerShell window only:
 
 ```powershell
 $env:SAM_API_KEY = "paste_your_sam_api_key_here"
-python .\samgovsearch_responsive.py
+python .\samgovsearch_filter_cache.py
 ```
 
 For your Windows user profile permanently:
@@ -179,15 +182,46 @@ For your Windows user profile permanently:
 
 Close and reopen PowerShell after setting it permanently.
 
+## Search within loaded results
+
+Use **Filter Current Results** after a search finishes or while results are still loading.
+
+This filter is local only:
+
+- It does not call SAM.gov again.
+- It does not spend official API quota.
+- It does not re-run the internal website search.
+- Clearing the box restores all currently loaded results.
+
+The filter checks the same data exported to CSV, including keyword, title, solicitation number, notice ID, type, posted date, organization, NAICS, PSC, SAM link, and resource links.
+
+Examples:
+
+```text
+raytheon
+```
+
+```text
+*patriot*spares*
+```
+
+```text
+W31P4Q*
+```
+
+If you type no wildcard characters, the app treats the value as a contains search. If you use `*` or `?`, the app treats it as a wildcard pattern.
+
+When filtered, CSV export exports the displayed result rows, not the hidden rows.
+
 ## Sorting results
 
-Click any result column header to sort the visible results.
+Click any result column header to sort the loaded results.
 
 - First click sorts ascending.
 - Second click on the same column sorts descending.
 - The selected column shows an up or down arrow.
 
-Sorting reorders the internal result list too, so double clicking a sorted row still opens the correct SAM.gov opportunity link.
+Sorting reorders the internal result list too, so double clicking a sorted and filtered row still opens the correct SAM.gov opportunity link.
 
 ## Downloading attachments
 
@@ -243,6 +277,8 @@ The cache stores:
 - `notices\` one file per SAM.gov notice ID found in results
 - `index.jsonl` append-only cache activity log
 - `README_DO_NOT_DELETE.txt` marker file
+
+The **Ignore cached searches for this run** checkbox skips reading existing cached query and notice records for that run. It still writes fresh successful responses back to the cache, so later runs can reuse the refreshed data.
 
 This folder is intentionally placed in user-local app data instead of the Windows temp folder because temp folders are designed to be cleaned or deleted. No user-owned folder can be made truly undeletable, but the app recreates the cache folder if it is missing. If the cache is deleted, only the cached data is lost.
 
