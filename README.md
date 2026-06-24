@@ -2,7 +2,7 @@
 
 A Windows-friendly Python Tkinter GUI for batch searching SAM.gov opportunities.
 
-The app now uses **one UI** and **one launcher**:
+The app uses **one UI** and **one launcher**:
 
 ```text
 run_samgovsearch.bat
@@ -59,13 +59,16 @@ If `SAM_API_KEY` is not set, Hybrid mode can still run as internal-only enrichme
 ## Features
 
 - One launcher: `run_samgovsearch.bat`.
-- One desktop UI: `samgovsearch_unified.py`.
+- One desktop UI: `samgovsearch_app.py`.
 - Batch search one keyword, part number, solicitation number, or notice ID per line.
 - Duplicate batch entries are removed before searching.
 - Search source selector:
   - Website/Internal Search, no key
   - Official API Search
   - Hybrid Search
+- Settings button to paste and save `SAM_API_KEY` to the Windows user environment.
+- Settings button links to SAM.gov account details and the official SAM.gov API docs.
+- Click result column headers to sort ascending or descending.
 - Optional checkbox: search all date ranges.
 - Optional checkbox: search all statuses.
 - Optional filter: only show opportunities with attachments.
@@ -94,15 +97,38 @@ run_samgovsearch.bat
 The BAT launcher will:
 
 - start from the repo folder automatically
-- launch `samgovsearch_unified.py`
+- launch `samgovsearch_app.py`
 - use `py -3` first, then fall back to `python`
 - warn you if Python is missing
 - allow no-key searching in Website/Internal mode
-- show a warning if `SAM_API_KEY` is not set because Official API mode and Hybrid official enrichment need it
+- let you add `SAM_API_KEY` from Settings inside the app
 
-## Optional SAM_API_KEY setup
+## SAM_API_KEY setup from the app
 
-You only need this for Official API mode or Hybrid official enrichment.
+You only need `SAM_API_KEY` for Official API mode or Hybrid official enrichment.
+
+In the app:
+
+1. Click **Settings / SAM_API_KEY**.
+2. Paste the SAM.gov API key.
+3. Click **Save Key**.
+
+On Windows, the app runs:
+
+```bat
+setx SAM_API_KEY "your_key"
+```
+
+It also applies the key to the currently running app immediately. Already-open terminals may not see the new value until they are reopened.
+
+The settings window also includes:
+
+- **Open SAM Account** - opens the SAM.gov account details page where users can generate or view their key after signing in.
+- **Open API Docs** - opens the official SAM.gov Opportunities API documentation.
+
+SAM.gov requires the API key to be generated or viewed inside the signed-in account flow, including password confirmation, so the app cannot generate the key automatically.
+
+## Manual SAM_API_KEY setup
 
 ### Windows Command Prompt
 
@@ -118,7 +144,7 @@ For the current PowerShell window only:
 
 ```powershell
 $env:SAM_API_KEY = "paste_your_sam_api_key_here"
-python .\samgovsearch_unified.py
+python .\samgovsearch_app.py
 ```
 
 For your Windows user profile permanently:
@@ -128,6 +154,16 @@ For your Windows user profile permanently:
 ```
 
 Close and reopen PowerShell after setting it permanently.
+
+## Sorting results
+
+Click any result column header to sort the visible results.
+
+- First click sorts ascending.
+- Second click on the same column sorts descending.
+- The selected column shows an up or down arrow.
+
+Sorting reorders the internal result list too, so double clicking a sorted row still opens the correct SAM.gov opportunity link.
 
 ## Local cache and index
 
@@ -151,7 +187,7 @@ This folder is intentionally placed in user-local app data instead of the Window
 To force a different cache location, set:
 
 ```bat
-setx SAMGOVSEARCH_CACHE_DIR "C:\\Path\\To\\SamGovSearchCache"
+setx SAMGOVSEARCH_CACHE_DIR "C:\Path\To\SamGovSearchCache"
 ```
 
 By default cached data does not expire. To set a max cache age, set days with:
@@ -217,43 +253,3 @@ https://sam.gov/api/prod/opps/v3/opportunities/{notice_id}/resources
 ```
 
 This is useful because the resources endpoint can expose attachment names, resource IDs, and sizes.
-
-## Batch dedupe behavior
-
-Before searching, the app removes duplicate batch entries. Dedupe is case-insensitive and ignores extra interior whitespace for matching.
-
-Example:
-
-```text
-Patriot
-patriot
-PATRIOT
-```
-
-Only the first `Patriot` line is searched.
-
-## Output columns
-
-The CSV export includes:
-
-- keyword
-- matched search field
-- notice ID
-- title
-- solicitation number
-- type
-- posted date
-- response deadline
-- active flag
-- organization
-- NAICS
-- PSC
-- attachment count
-- attachment total MB
-- attachment size note
-- SAM link
-- resource links
-
-## Notes
-
-The Website/Internal Search mode is based on the endpoint structure used by `DeerSpotter/sam-gov-scraper`. It avoids official API quota for broad discovery, but it is not an officially documented public API contract. Keep Official API mode available as the stable fallback.
