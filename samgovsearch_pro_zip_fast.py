@@ -60,6 +60,7 @@ class SamGovSearchProZipFastApp(SamGovSearchProSearchHelpApp):
             return match ? match[1].replace(/&amp;/g, '&') : '';
         }
         """
+        last_error: Optional[Exception] = None
         try:
             handle = page.wait_for_function(script, timeout=WEBSITE_ZIP_TIMEOUT_MS, polling=100)
             href = str(handle.json_value() or "").strip()
@@ -68,12 +69,10 @@ class SamGovSearchProZipFastApp(SamGovSearchProSearchHelpApp):
                 return href.replace("&amp;", "&")
         except Exception as exc:
             last_error = exc
-        else:
-            last_error = None
 
         try:
             html = page.content()
-            match = re.search(r'href=["\\']([^"\\']*X-Amz-Signature[^"\\']*)["\\']', html)
+            match = re.search(r"href=[\"']([^\"']*X-Amz-Signature[^\"']*)[\"']", html, re.IGNORECASE)
             if match:
                 self._log("Captured SAM.gov ZIP URL from page HTML. Starting immediate download.")
                 return match.group(1).replace("&amp;", "&")
