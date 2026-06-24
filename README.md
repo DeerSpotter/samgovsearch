@@ -11,7 +11,7 @@ run_samgovsearch.bat
 The launcher opens:
 
 ```text
-samgovsearch_pro.py
+samgovsearch_pro_exclusions.py
 ```
 
 Inside the UI, choose the search source:
@@ -65,10 +65,11 @@ If `SAM_API_KEY` is not set, Hybrid mode can still run as internal-only enrichme
 ## Features
 
 - One launcher: `run_samgovsearch.bat`.
-- One desktop UI: `samgovsearch_pro.py`.
+- One desktop UI: `samgovsearch_pro_exclusions.py`.
 - Responsive layout: the left options panel scrolls and the right results area resizes when the window is not maximized.
 - Batch search one keyword, part number, solicitation number, or notice ID per line.
 - Duplicate batch entries are removed before searching.
+- Default prefilled keywords are only `Patriot` and `frequency converter`.
 - Search source selector:
   - Website/Internal Search, no key
   - Official API Search
@@ -76,6 +77,7 @@ If `SAM_API_KEY` is not set, Hybrid mode can still run as internal-only enrichme
 - Settings button to paste and save `SAM_API_KEY` to the Windows user environment.
 - Settings button links to SAM.gov account details and the official SAM.gov API docs.
 - Search within the currently loaded results without running another SAM.gov search.
+- Hide/exclude loaded results by comma-separated keywords without running another SAM.gov search.
 - Search within results supports simple text matching plus `*` and `?` wildcards.
 - Attachment name filtering for loaded results and cached SQLite searches.
 - SQLite local index for fast local searching of previously cached SAM.gov results.
@@ -103,7 +105,7 @@ If `SAM_API_KEY` is not set, Hybrid mode can still run as internal-only enrichme
 - Python 3.10 or newer recommended.
 - Tkinter. This is included with the standard Windows Python installer.
 - SQLite. This is included with standard Python.
-- No third-party Python packages are required for searching, sorting, caching, SQLite indexing, CSV export, result filtering, or individual attachment downloads.
+- No third-party Python packages are required for searching, sorting, caching, SQLite indexing, CSV export, result filtering, exclusion filtering, or individual attachment downloads.
 - Optional for the SAM.gov website-style ZIP download method: Playwright.
 
 Install the optional ZIP download dependency with:
@@ -126,7 +128,7 @@ run_samgovsearch.bat
 The BAT launcher will:
 
 - start from the repo folder automatically
-- launch `samgovsearch_pro.py`
+- launch `samgovsearch_pro_exclusions.py`
 - use `py -3` first, then fall back to `python`
 - warn you if Python is missing
 - allow no-key searching in Website/Internal mode
@@ -183,7 +185,7 @@ For the current PowerShell window only:
 
 ```powershell
 $env:SAM_API_KEY = "paste_your_sam_api_key_here"
-python .\samgovsearch_pro.py
+python .\samgovsearch_pro_exclusions.py
 ```
 
 For your Windows user profile permanently:
@@ -212,20 +214,27 @@ Use the **SQLite Local Index** section for:
 
 Cached-result search checks title, solicitation number, notice ID, type, organization, NAICS, PSC, attachment names, and description where cached.
 
-## Search within loaded results
+## Search and hide within loaded results
 
 Use **Filter Current Results** after a search finishes or while results are still loading.
 
-This filter is local only:
+There are two local result fields:
 
-- It does not call SAM.gov again.
-- It does not spend official API quota.
-- It does not re-run the internal website search.
-- Clearing the box restores all currently loaded results.
+- **Show results containing**: only displays loaded results that match the typed text or wildcard.
+- **Hide results containing any of these comma-separated keywords**: hides loaded results if any exclude keyword is contained in the result data.
 
-The filter checks the same data exported to CSV, including keyword, title, solicitation number, notice ID, type, posted date, organization, NAICS, PSC, SAM link, and resource links.
+These fields are local only:
 
-Examples:
+- They do not call SAM.gov again.
+- They do not spend official API quota.
+- They do not re-run the internal website search.
+- Clearing either field restores the currently loaded rows that are not hidden by another local filter.
+
+The show filter checks the same data exported to CSV, including keyword, title, solicitation number, notice ID, type, posted date, organization, NAICS, PSC, SAM link, and resource links.
+
+The hide filter checks the row data, attachment names, cached description, solicitation number, and agency path when available.
+
+Show examples:
 
 ```text
 raytheon
@@ -239,7 +248,15 @@ raytheon
 W31P4Q*
 ```
 
-If you type no wildcard characters, the app treats the value as a contains search. If you use `*` or `?`, the app treats the value as a wildcard pattern.
+Hide examples:
+
+```text
+amendment, award, cancelled
+```
+
+```text
+sources sought, draft
+```
 
 When filtered, CSV export exports the displayed result rows, not the hidden rows.
 
