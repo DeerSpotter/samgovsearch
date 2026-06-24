@@ -7,11 +7,11 @@ title SAM.gov Search
 echo.
 echo SAM.gov Search Launcher
 echo =======================
-echo Starting SAM.gov Search with conditional NAICS query/filter support.
+echo Starting SAM.gov Search with conditional NAICS query support and title-only results filter.
 echo.
 
 set "PYTHON_CMD="
-set "APP_SCRIPT=samgovsearch_pro_naics_q_filter.py"
+set "APP_SCRIPT=samgovsearch_pro_title_result_filter.py"
 
 where py >nul 2>nul
 if not errorlevel 1 (
