@@ -86,32 +86,18 @@ class SamGovSearchProPredefinedNaicsApp(SamGovSearchProCheckboxFieldStatesApp):
 
         keywords, raw_count, duplicate_count = base.parse_batch_terms(self.keyword_text.get("1.0", "end"))
         if not keywords:
-            # Empty keyword box means NAICS/date/status-only search.
             keywords = [""]
             raw_count = 0
             duplicate_count = 0
 
-        max_results = base.parse_int(
-            self.max_results_var.get(),
-            base.DEFAULT_MAX_RESULTS_PER_SEARCH,
-            1,
-            100000,
-        )
-        timeout = base.parse_int(
-            self.timeout_var.get(),
-            base.DEFAULT_TIMEOUT_SECONDS,
-            5,
-            300,
-        )
+        max_results = base.parse_int(self.max_results_var.get(), base.DEFAULT_MAX_RESULTS_PER_SEARCH, 1, 100000)
+        timeout = base.parse_int(self.timeout_var.get(), base.DEFAULT_TIMEOUT_SECONDS, 5, 300)
 
         all_date_ranges = bool(self.all_date_ranges_var.get())
         if all_date_ranges:
             date_windows = base.build_all_date_windows(base.ALL_DATE_RANGES_START, base.date.today())
         else:
-            date_windows = base.build_manual_date_window(
-                self.posted_from_var.get(),
-                self.posted_to_var.get(),
-            )
+            date_windows = base.build_manual_date_window(self.posted_from_var.get(), self.posted_to_var.get())
 
         status = "" if bool(self.all_statuses_var.get()) else self.status_var.get().strip()
         require_attachments = bool(self.require_attachments_var.get())
@@ -167,9 +153,6 @@ class SamGovSearchProPredefinedNaicsApp(SamGovSearchProCheckboxFieldStatesApp):
                 codes.append(code)
         return codes
 
-    def _search_label(self, keyword: str, code: str) -> str:
-        return f"{keyword.strip() or 'NAICS-only'} | NAICS {code}"
-
     def _clean_variant_params(self, variant_params: Dict[str, str]) -> Dict[str, str]:
         return {key: value for key, value in variant_params.items() if str(value or "").strip()}
 
@@ -202,27 +185,19 @@ class SamGovSearchProPredefinedNaicsApp(SamGovSearchProCheckboxFieldStatesApp):
 
         for key in ("naicsCode", "naics", "ncode", "naicsCodes"):
             add(item.get(key))
-
         data2 = item.get("data2")
         if isinstance(data2, dict):
             for key in ("naicsCode", "naics", "ncode", "naicsCodes"):
                 add(data2.get(key))
-
         return list(dict.fromkeys(values))
 
-    def _paged_search(
-        self,
-        client: base.SamGovClient,
-        settings: base.SearchSettings,
-        variant_params: Dict[str, str],
-    ) -> Iterable[Dict[str, Any]]:
+    def _paged_search(self, client: base.SamGovClient, settings: base.SearchSettings, variant_params: Dict[str, str]) -> Iterable[Dict[str, Any]]:
         if not getattr(settings, "use_predefined_naics", False):
             yield from super()._paged_search(client, settings, variant_params)
             return
 
         codes = getattr(settings, "predefined_naics_codes", []) or []
         clean_variant_params = self._clean_variant_params(variant_params)
-
         for code in codes:
             retrieved = 0
             for posted_from, posted_to in settings.date_windows:
@@ -231,7 +206,6 @@ class SamGovSearchProPredefinedNaicsApp(SamGovSearchProCheckboxFieldStatesApp):
                 while retrieved < settings.max_results_per_search:
                     if self.stop_event.is_set():
                         return
-
                     page_limit = min(1000, settings.max_results_per_search - retrieved)
                     params: Dict[str, Any] = {
                         "postedFrom": posted_from,
@@ -251,14 +225,12 @@ class SamGovSearchProPredefinedNaicsApp(SamGovSearchProCheckboxFieldStatesApp):
                     total_records_for_window = int(data.get("totalRecords") or 0)
                     if not items:
                         break
-
                     for item in items:
                         retrieved += 1
                         if self._item_matches_predefined_naics(item, settings):
                             yield item
                         if retrieved >= settings.max_results_per_search:
                             return
-
                     records_seen_for_window = (offset * page_limit) + len(items)
                     if total_records_for_window is not None and records_seen_for_window >= total_records_for_window:
                         break
@@ -278,7 +250,6 @@ class SamGovSearchProPredefinedNaicsApp(SamGovSearchProCheckboxFieldStatesApp):
 
         query_text = (variant_params.get("title") or variant_params.get("solnum") or keyword or "").strip()
         codes = getattr(settings, "predefined_naics_codes", []) or []
-
         for code in codes:
             retrieved = 0
             for posted_from, posted_to in settings.date_windows:
@@ -287,7 +258,6 @@ class SamGovSearchProPredefinedNaicsApp(SamGovSearchProCheckboxFieldStatesApp):
                 while retrieved < settings.max_results_per_search:
                     if self.stop_event.is_set():
                         return
-
                     page_size = min(100, settings.max_results_per_search - retrieved)
                     params: Dict[str, Any] = {
                         "__source": "internal-search-naics",
@@ -298,11 +268,7 @@ class SamGovSearchProPredefinedNaicsApp(SamGovSearchProCheckboxFieldStatesApp):
                         "size": page_size,
                         "postedFrom": posted_from,
                         "postedTo": posted_to,
-                        # SAM.gov website/internal search has changed parameter names over time.
-                        # Send the likely names and still verify the returned item's NAICS locally.
                         "naics": code,
-                        "naicsCode": code,
-                        "ncode": code,
                     }
                     if query_text:
                         params["q"] = query_text
@@ -318,7 +284,6 @@ class SamGovSearchProPredefinedNaicsApp(SamGovSearchProCheckboxFieldStatesApp):
                     total_for_window = unified.internal_total_records(data, fallback=len(raw_items))
                     if not raw_items:
                         break
-
                     for raw_item in raw_items:
                         retrieved += 1
                         normalized = unified.normalize_internal_item(raw_item)
@@ -326,26 +291,12 @@ class SamGovSearchProPredefinedNaicsApp(SamGovSearchProCheckboxFieldStatesApp):
                             yield normalized, (posted_from, posted_to)
                         if retrieved >= settings.max_results_per_search:
                             return
-
                     records_seen = (page * page_size) + len(raw_items)
                     if total_for_window is not None and records_seen >= total_for_window:
                         break
                     page += 1
 
     def start_search(self) -> None:
-        if self._use_predefined_naics_enabled():
-            codes = self._interested_naics_codes()
-            keywords = base.split_keywords(self.keyword_text.get("1.0", "end"))
-            if not keywords:
-                self._log(
-                    "Predefined NAICS search enabled with blank batch keywords. "
-                    f"Searching only NAICS {', '.join(codes)} within the selected date/status/source filters."
-                )
-            else:
-                self._log(
-                    "Predefined NAICS search enabled. "
-                    f"Searching entered keyword(s) inside NAICS {', '.join(codes)}."
-                )
         super().start_search()
 
 
