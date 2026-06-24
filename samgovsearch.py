@@ -12,7 +12,7 @@ import urllib.parse
 import urllib.request
 import webbrowser
 from dataclasses import dataclass, field
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 import tkinter as tk
 from tkinter import filedialog, messagebox
@@ -23,13 +23,18 @@ SAM_API_URL = "https://api.sam.gov/opportunities/v2/search"
 DEFAULT_TIMEOUT_SECONDS = 30
 DEFAULT_MAX_RESULTS_PER_SEARCH = 100
 DEFAULT_STATUS = "active"
+ALL_DATE_RANGES_START = date(2018, 1, 1)
+DATE_FORMAT = "%m/%d/%Y"
+MAX_POSTED_DATE_WINDOW_DAYS = 365
 
 
 @dataclass
 class SearchSettings:
     keywords: List[str]
-    posted_from: str
-    posted_to: str
+    raw_batch_count: int
+    duplicate_batch_count: int
+    date_windows: List[Tuple[str, str]]
+    all_date_ranges: bool
     status: str
     ptype: str
     search_mode: str
@@ -96,7 +101,7 @@ class SamGovClient:
             url,
             headers={
                 "Accept": "application/json",
-                "User-Agent": "samgovsearch/1.0",
+                "User-Agent": "samgovsearch/1.1",
             },
         )
 
@@ -133,7 +138,7 @@ class SamGovClient:
         request = urllib.request.Request(
             url,
             method="HEAD",
-            headers={"User-Agent": "samgovsearch/1.0"},
+            headers={"User-Agent": "samgovsearch/1.1"},
         )
 
         try:
@@ -150,7 +155,7 @@ class SamGovClient:
         request = urllib.request.Request(
             url,
             headers={
-                "User-Agent": "samgovsearch/1.0",
+                "User-Agent": "samgovsearch/1.1",
                 "Range": "bytes=0-0",
             },
         )
@@ -191,11 +196,11 @@ def append_api_key_if_missing(url: str, api_key: str) -> str:
 
 def default_posted_dates() -> Tuple[str, str]:
     today = date.today()
-    start = today - timedelta(days=365)
-    return start.strftime("%m/%d/%Y"), today.strftime("%m/%d/%Y")
+    start = today - timedelta(days=MAX_POSTED_DATE_WINDOW_DAYS)
+    return start.strftime(DATE_FORMAT), today.strftime(DATE_FORMAT)
 
 
-def split_keywords(raw: str) -> List[str]:
+def parse_batch_terms(raw: str) -> Tuple[List[str], int, int]:
     terms: List[str] = []
     for line in raw.replace(",", "\n").splitlines():
         value = line.strip()
@@ -203,13 +208,23 @@ def split_keywords(raw: str) -> List[str]:
             terms.append(value)
 
     seen = set()
-    cleaned = []
+    cleaned: List[str] = []
+    duplicate_count = 0
     for term in terms:
-        key = term.lower()
-        if key not in seen:
-            cleaned.append(term)
-            seen.add(key)
-    return cleaned
+        # Collapse interior whitespace for dedupe only. Keep the original term for searching.
+        key = " ".join(term.lower().split())
+        if key in seen:
+            duplicate_count += 1
+            continue
+        cleaned.append(term)
+        seen.add(key)
+
+    return cleaned, len(terms), duplicate_count
+
+
+def split_keywords(raw: str) -> List[str]:
+    keywords, _, _ = parse_batch_terms(raw)
+    return keywords
 
 
 def parse_int(value: str, default: int, minimum: int, maximum: int) -> int:
@@ -230,6 +245,45 @@ def parse_float(value: str, default: float, minimum: float) -> float:
     if number < minimum:
         raise ValueError(f"Value must be at least {minimum}.")
     return number
+
+
+def parse_mmddyyyy(value: str, field_name: str) -> date:
+    text = value.strip()
+    if not text:
+        raise ValueError(f"{field_name} is required unless Search all date ranges is checked.")
+    try:
+        return datetime.strptime(text, DATE_FORMAT).date()
+    except ValueError as exc:
+        raise ValueError(f"{field_name} must be MM/DD/YYYY.") from exc
+
+
+def build_all_date_windows(start: date, end: date) -> List[Tuple[str, str]]:
+    if end < start:
+        raise ValueError("All date range end date is before the start date.")
+
+    windows: List[Tuple[str, str]] = []
+    window_start = start
+    while window_start <= end:
+        window_end = min(window_start + timedelta(days=MAX_POSTED_DATE_WINDOW_DAYS), end)
+        windows.append((window_start.strftime(DATE_FORMAT), window_end.strftime(DATE_FORMAT)))
+        window_start = window_end + timedelta(days=1)
+    return windows
+
+
+def build_manual_date_window(posted_from: str, posted_to: str) -> List[Tuple[str, str]]:
+    start = parse_mmddyyyy(posted_from, "Posted From")
+    end = parse_mmddyyyy(posted_to, "Posted To")
+
+    if end < start:
+        raise ValueError("Posted To must be the same as or later than Posted From.")
+
+    if (end - start).days > MAX_POSTED_DATE_WINDOW_DAYS:
+        raise ValueError(
+            "SAM.gov only allows a posted date range of 1 year. "
+            "Shorten the date range or check Search all date ranges."
+        )
+
+    return [(start.strftime(DATE_FORMAT), end.strftime(DATE_FORMAT))]
 
 
 def build_search_variants(term: str, mode: str) -> List[Tuple[str, Dict[str, str]]]:
@@ -370,13 +424,23 @@ class SamGovSearchApp(tk.Tk):
 
         ttk.Label(form, text="Posted From").grid(row=0, column=0, sticky="w")
         self.posted_from_var = tk.StringVar(value=posted_from)
-        ttk.Entry(form, textvariable=self.posted_from_var, width=18).grid(row=0, column=1, sticky="ew", padx=(8, 0), pady=2)
+        self.posted_from_entry = ttk.Entry(form, textvariable=self.posted_from_var, width=18)
+        self.posted_from_entry.grid(row=0, column=1, sticky="ew", padx=(8, 0), pady=2)
 
         ttk.Label(form, text="Posted To").grid(row=1, column=0, sticky="w")
         self.posted_to_var = tk.StringVar(value=posted_to)
-        ttk.Entry(form, textvariable=self.posted_to_var, width=18).grid(row=1, column=1, sticky="ew", padx=(8, 0), pady=2)
+        self.posted_to_entry = ttk.Entry(form, textvariable=self.posted_to_var, width=18)
+        self.posted_to_entry.grid(row=1, column=1, sticky="ew", padx=(8, 0), pady=2)
 
-        ttk.Label(form, text="Status").grid(row=2, column=0, sticky="w")
+        self.all_date_ranges_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(
+            form,
+            text="Search all date ranges",
+            variable=self.all_date_ranges_var,
+            command=self._toggle_date_controls,
+        ).grid(row=2, column=0, columnspan=2, sticky="w", pady=(2, 6))
+
+        ttk.Label(form, text="Status").grid(row=3, column=0, sticky="w")
         self.status_var = tk.StringVar(value=DEFAULT_STATUS)
         ttk.Combobox(
             form,
@@ -384,9 +448,9 @@ class SamGovSearchApp(tk.Tk):
             values=["", "active", "inactive", "archived", "cancelled", "deleted"],
             state="readonly",
             width=18,
-        ).grid(row=2, column=1, sticky="ew", padx=(8, 0), pady=2)
+        ).grid(row=3, column=1, sticky="ew", padx=(8, 0), pady=2)
 
-        ttk.Label(form, text="Procurement Type").grid(row=3, column=0, sticky="w")
+        ttk.Label(form, text="Procurement Type").grid(row=4, column=0, sticky="w")
         self.ptype_var = tk.StringVar(value="")
         ttk.Combobox(
             form,
@@ -405,9 +469,9 @@ class SamGovSearchApp(tk.Tk):
             ],
             state="readonly",
             width=28,
-        ).grid(row=3, column=1, sticky="ew", padx=(8, 0), pady=2)
+        ).grid(row=4, column=1, sticky="ew", padx=(8, 0), pady=2)
 
-        ttk.Label(form, text="Search Mode").grid(row=4, column=0, sticky="w")
+        ttk.Label(form, text="Search Mode").grid(row=5, column=0, sticky="w")
         self.search_mode_var = tk.StringVar(value="Auto")
         ttk.Combobox(
             form,
@@ -421,15 +485,15 @@ class SamGovSearchApp(tk.Tk):
             ],
             state="readonly",
             width=28,
-        ).grid(row=4, column=1, sticky="ew", padx=(8, 0), pady=2)
+        ).grid(row=5, column=1, sticky="ew", padx=(8, 0), pady=2)
 
-        ttk.Label(form, text="Max Results / Search").grid(row=5, column=0, sticky="w")
+        ttk.Label(form, text="Max Results / Search").grid(row=6, column=0, sticky="w")
         self.max_results_var = tk.StringVar(value=str(DEFAULT_MAX_RESULTS_PER_SEARCH))
-        ttk.Entry(form, textvariable=self.max_results_var, width=18).grid(row=5, column=1, sticky="ew", padx=(8, 0), pady=2)
+        ttk.Entry(form, textvariable=self.max_results_var, width=18).grid(row=6, column=1, sticky="ew", padx=(8, 0), pady=2)
 
-        ttk.Label(form, text="Timeout Seconds").grid(row=6, column=0, sticky="w")
+        ttk.Label(form, text="Timeout Seconds").grid(row=7, column=0, sticky="w")
         self.timeout_var = tk.StringVar(value=str(DEFAULT_TIMEOUT_SECONDS))
-        ttk.Entry(form, textvariable=self.timeout_var, width=18).grid(row=6, column=1, sticky="ew", padx=(8, 0), pady=2)
+        ttk.Entry(form, textvariable=self.timeout_var, width=18).grid(row=7, column=1, sticky="ew", padx=(8, 0), pady=2)
 
         self.require_attachments_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(
@@ -478,7 +542,8 @@ class SamGovSearchApp(tk.Tk):
             left,
             text=(
                 "API key is read only from EnvironmentVariable=SAM_API_KEY. "
-                "Dates must be MM/DD/YYYY. SAM.gov requires a posted date range."
+                "Dates must be MM/DD/YYYY. Search all date ranges searches "
+                "01/01/2018 through today in 1-year windows."
             ),
             wraplength=360,
         ).grid(row=8, column=0, sticky="w", pady=(10, 0))
@@ -544,7 +609,13 @@ class SamGovSearchApp(tk.Tk):
         self.log_text.grid(row=0, column=0, sticky="ew")
         self.log_text.configure(state="disabled")
 
+        self._toggle_date_controls()
         self._toggle_attachment_controls()
+
+    def _toggle_date_controls(self) -> None:
+        state = "disabled" if self.all_date_ranges_var.get() else "normal"
+        self.posted_from_entry.configure(state=state)
+        self.posted_to_entry.configure(state=state)
 
     def _toggle_attachment_controls(self) -> None:
         if self.require_attachments_var.get():
@@ -579,7 +650,20 @@ class SamGovSearchApp(tk.Tk):
         for row_id in self.tree.get_children():
             self.tree.delete(row_id)
         self._set_log("")
-        self._log(f"Starting search for {len(settings.keywords)} batch item(s).")
+
+        self._log(
+            f"Starting search for {len(settings.keywords)} unique batch item(s) "
+            f"from {settings.raw_batch_count} entered item(s)."
+        )
+        if settings.duplicate_batch_count:
+            self._log(f"Skipped {settings.duplicate_batch_count} duplicate batch item(s) before searching.")
+        if settings.all_date_ranges:
+            first_from, _ = settings.date_windows[0]
+            _, last_to = settings.date_windows[-1]
+            self._log(
+                f"Search all date ranges enabled: {first_from} to {last_to} "
+                f"across {len(settings.date_windows)} one-year window(s)."
+            )
 
         self.search_button.configure(state="disabled")
         self.stop_button.configure(state="normal")
@@ -598,7 +682,7 @@ class SamGovSearchApp(tk.Tk):
         self._log("Stop requested. Finishing current request...")
 
     def _read_settings(self) -> SearchSettings:
-        keywords = split_keywords(self.keyword_text.get("1.0", "end"))
+        keywords, raw_count, duplicate_count = parse_batch_terms(self.keyword_text.get("1.0", "end"))
         if not keywords:
             raise ValueError("Enter at least one keyword, part number, solicitation number, or notice ID.")
 
@@ -615,6 +699,15 @@ class SamGovSearchApp(tk.Tk):
             300,
         )
 
+        all_date_ranges = self.all_date_ranges_var.get()
+        if all_date_ranges:
+            date_windows = build_all_date_windows(ALL_DATE_RANGES_START, date.today())
+        else:
+            date_windows = build_manual_date_window(
+                self.posted_from_var.get(),
+                self.posted_to_var.get(),
+            )
+
         require_attachments = self.require_attachments_var.get()
         min_count = 0
         min_size = 0.0
@@ -624,8 +717,10 @@ class SamGovSearchApp(tk.Tk):
 
         return SearchSettings(
             keywords=keywords,
-            posted_from=self.posted_from_var.get().strip(),
-            posted_to=self.posted_to_var.get().strip(),
+            raw_batch_count=raw_count,
+            duplicate_batch_count=duplicate_count,
+            date_windows=date_windows,
+            all_date_ranges=all_date_ranges,
             status=self.status_var.get().strip(),
             ptype=self._ptype_code(),
             search_mode=self.search_mode_var.get().strip(),
@@ -709,43 +804,50 @@ class SamGovSearchApp(tk.Tk):
         variant_params: Dict[str, str],
     ) -> Iterable[Dict[str, Any]]:
         retrieved = 0
-        offset = 0
 
-        while retrieved < settings.max_results_per_search:
-            if self.stop_event.is_set():
-                return
+        for posted_from, posted_to in settings.date_windows:
+            offset = 0
+            total_records_for_window: Optional[int] = None
 
-            page_limit = min(1000, settings.max_results_per_search - retrieved)
-            params: Dict[str, Any] = {
-                "postedFrom": settings.posted_from,
-                "postedTo": settings.posted_to,
-                "limit": page_limit,
-                "offset": offset,
-            }
-            if settings.status:
-                params["status"] = settings.status
-            if settings.ptype:
-                params["ptype"] = settings.ptype
-            params.update(variant_params)
+            while retrieved < settings.max_results_per_search:
+                if self.stop_event.is_set():
+                    return
 
-            data = client.search(params)
-            items = data.get("opportunitiesData") or []
-            total_records = int(data.get("totalRecords") or 0)
+                page_limit = min(1000, settings.max_results_per_search - retrieved)
+                params: Dict[str, Any] = {
+                    "postedFrom": posted_from,
+                    "postedTo": posted_to,
+                    "limit": page_limit,
+                    "offset": offset,
+                }
+                if settings.status:
+                    params["status"] = settings.status
+                if settings.ptype:
+                    params["ptype"] = settings.ptype
+                params.update(variant_params)
 
-            if not items:
-                return
+                data = client.search(params)
+                items = data.get("opportunitiesData") or []
+                total_records_for_window = int(data.get("totalRecords") or 0)
 
-            for item in items:
-                retrieved += 1
-                yield item
+                if not items:
+                    break
+
+                for item in items:
+                    retrieved += 1
+                    yield item
+
+                    if retrieved >= settings.max_results_per_search:
+                        return
 
                 if retrieved >= settings.max_results_per_search:
                     return
 
-            if retrieved >= total_records:
-                return
+                records_seen_for_window = (offset * page_limit) + len(items)
+                if records_seen_for_window >= total_records_for_window:
+                    break
 
-            offset += 1
+                offset += 1
 
     def _attachment_total_bytes(
         self,
