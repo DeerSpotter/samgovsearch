@@ -1,0 +1,5 @@
+{
+  "mission": "Example: we build software for logistics teams; focus on opportunities that mention fleet or compliance tooling.",
+  "target_naics": ["541511", "541512"],
+  "notes": "Generic placeholder — replace with your own profile after copying to ~/.arrow/company_profile.json"
+}
