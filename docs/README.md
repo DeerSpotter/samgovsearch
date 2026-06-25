@@ -13,6 +13,8 @@ It is a real hosted tool architecture, not just a static fallback page:
 
 - Batch search for keywords, part numbers, solicitation numbers, notice IDs, or NAICS.
 - NAICS checkbox: number only lines such as `336414`, `336415`, and `336419` are searched as NAICS filters when checked.
+- Search modes for Auto, Title, Solicitation Number, Notice ID, Title + Solicitation Number, and Attachment Name Only.
+- Attachment Name Only scans returned notices in the selected date/status range and matches against attachment filenames.
 - Date windows with normal range or all date ranges from `01/01/2018` to today.
 - Status and procurement type filtering.
 - Optional attachment enrichment using the SAM.gov internal resources endpoint.
@@ -21,6 +23,18 @@ It is a real hosted tool architecture, not just a static fallback page:
 - Sortable result table.
 - Details panel with SAM.gov links, resource links, attachment names, and descriptions when available.
 - CSV export of the currently displayed rows.
+
+## Attachment filename searching
+
+SAM.gov does not expose a simple public search box that directly searches every attachment filename.
+
+The hosted tool implements this by:
+
+1. Pulling notices for the selected date/status/procurement range.
+2. Calling the resources endpoint for each notice scanned.
+3. Matching the search term against the returned attachment names.
+
+Use a tight date range and a reasonable **Max / Term** value for this mode because it requires one resources request per notice scanned.
 
 ## Hosted pieces
 
