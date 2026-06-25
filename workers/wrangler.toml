@@ -3,4 +3,5 @@ main = "samgov-proxy-worker.js"
 compatibility_date = "2025-08-01"
 workers_dev = true
 
-# Touch this file to trigger the GitHub Actions Worker deploy from the repo.
+# Cloudflare Git deploy root directory is workers.
+# Touch 2026-06-25 to trigger deployment.
