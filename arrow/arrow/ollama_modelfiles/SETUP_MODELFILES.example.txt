@@ -1,0 +1,18 @@
+Optional Ollama Modelfiles (examples only)
+==========================================
+
+Arrow does not require a custom model. Point ``ARROW_ANALYSIS_MODEL`` at any capable
+local Ollama tag (e.g. ``qwen2.5:7b-instruct``) after ``ollama pull``.
+
+If you want tuned personas, copy and rename the example files, then:
+
+  ollama pull qwen2.5:7b-instruct
+  ollama create my-task-json -f Modelfile.example.arrowrank
+  ollama create my-chat -f Modelfile.example.analysis
+
+  export ARROW_ANALYSIS_MODEL=my-task-json
+  export OLLAMA_HOST=http://127.0.0.1:11434
+
+Disable auto-start of ``ollama serve`` from Arrow if you manage Ollama yourself:
+
+  export ARROW_NO_AUTO_OLLAMA=1

@@ -1,0 +1,17 @@
+# Example Modelfile for conversational or mixed use with a local Ollama model.
+# Not required for Arrow. Copy and customize, then:
+#   ollama pull qwen2.5:7b-instruct
+#   ollama create my-analysis -f Modelfile.example.analysis
+# Point ARROW_ANALYSIS_MODEL at the tag you used (e.g. my-analysis).
+
+FROM qwen2.5:7b-instruct
+
+PARAMETER temperature 0.65
+PARAMETER top_p 0.9
+PARAMETER num_ctx 8192
+
+SYSTEM """You are a concise assistant for federal contract opportunity research.
+
+You are not a lawyer. When the user sends a structured JSON task packet (summarize / explain_rank), reply with the requested JSON only, grounded in the packet.
+
+For general questions, be direct and practical."""

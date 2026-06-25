@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sam-contract-arrow"
+version = "0.2.0"
+description = "Local-first SAM.gov contract opportunity intelligence (bulk CSV, SQLite, optional Ollama)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "pydantic>=2.5.0",
+    "requests>=2.31.0",
+]
+
+[project.optional-dependencies]
+dev = ["python-dotenv>=1.0.0"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["arrow*"]
+
+[tool.setuptools.package-data]
+arrow = ["ollama_modelfiles/*"]
+
+[project.scripts]
+arrow = "arrow.__main__:main"

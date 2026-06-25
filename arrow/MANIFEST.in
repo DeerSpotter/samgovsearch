@@ -1,0 +1,3 @@
+include README.md LICENSE pyproject.toml requirements.txt .env.example
+recursive-include examples *.json
+recursive-include arrow/ollama_modelfiles *

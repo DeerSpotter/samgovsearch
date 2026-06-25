@@ -1,0 +1,6 @@
+# Minimal runtime for Arrow (install from repo root: pip install -r requirements.txt)
+pydantic>=2.5.0
+requests>=2.31.0
+
+# Optional: richer .env parsing (Arrow falls back to a tiny parser if missing)
+# python-dotenv>=1.0.0
