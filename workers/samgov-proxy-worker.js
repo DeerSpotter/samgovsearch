@@ -1,9 +1,9 @@
 /**
  * SAM.gov Search no-key proxy for the GitHub Pages tool.
  *
- * This Worker does not use SAM_API_KEY. It only relays the same SAM.gov
- * website/internal endpoints used by the Python desktop app so the browser UI
- * is not blocked by CORS when served from GitHub Pages.
+ * This Worker does not use SAM_API_KEY. It relays public SAM.gov website
+ * endpoints and can optionally write indexed search results into Supabase.
+ * Supabase writes require Worker secrets, never browser-side service keys.
  */
 
 const SAM_ORIGIN = 'https://sam.gov';
@@ -44,8 +44,8 @@ function corsHeaders(request, env) {
 
   return {
     'Access-Control-Allow-Origin': allowOrigin,
-    'Access-Control-Allow-Methods': 'GET,HEAD,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type,Accept',
+    'Access-Control-Allow-Methods': 'GET,HEAD,POST,OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type,Accept,Authorization',
     'Access-Control-Max-Age': '86400',
     'Vary': 'Origin',
   };
@@ -71,6 +71,21 @@ function cleanSegment(value) {
   if (!text || text.length > 160) return '';
   if (!/^[A-Za-z0-9_.:-]+$/.test(text)) return '';
   return text;
+}
+
+function cleanText(value, maxLength = 4000) {
+  const text = String(value ?? '').trim();
+  if (!text) return null;
+  return text.length > maxLength ? text.slice(0, maxLength) : text;
+}
+
+function cleanDate(value) {
+  const text = cleanText(value, 32);
+  if (!text) return null;
+  const m = text.match(/^(\d{4}-\d{2}-\d{2})|^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (!m) return null;
+  if (m[1]) return m[1];
+  return `${m[4]}-${String(m[2]).padStart(2, '0')}-${String(m[3]).padStart(2, '0')}`;
 }
 
 function buildSearchUrl(sourceUrl) {
@@ -130,6 +145,104 @@ async function relay(request, env, targetUrl, cacheSeconds = 30) {
   });
 }
 
+function supabaseConfig(env) {
+  const url = String(env.SUPABASE_URL || '').replace(/\/+$/, '');
+  const key = String(env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_SECRET_KEY || '').trim();
+  return { url, key, ready: Boolean(url && key) };
+}
+
+function normalizeOpportunity(row) {
+  const noticeId = cleanText(row.notice_id || row.noticeId || row.noticeID || row.id, 200);
+  if (!noticeId) return null;
+  return {
+    notice_id: noticeId,
+    solicitation_number: cleanText(row.solicitation_number || row.solicitationNumber, 500),
+    title: cleanText(row.title || row.notice_title || row.noticeTitle, 1000),
+    posted_date: cleanDate(row.posted_date || row.postedDate || row.publishDate),
+    response_deadline: cleanText(row.response_deadline || row.responseDeadline, 250),
+    agency: cleanText(row.agency || row.organization, 1200),
+    notice_type: cleanText(row.notice_type || row.noticeType || row.type, 250),
+    naics: cleanText(row.naics || row.naicsCode, 100),
+    psc: cleanText(row.psc || row.classificationCode, 100),
+    description: cleanText(row.description, 12000),
+    sam_url: cleanText(row.sam_url || row.samUrl || row.uiLink || `https://sam.gov/opp/${encodeURIComponent(noticeId)}/view`, 1000),
+    source_json: row.source_json || row.sourceJson || row,
+    last_seen_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+}
+
+function normalizeDocument(row) {
+  const noticeId = cleanText(row.notice_id || row.noticeId, 200);
+  const resourceId = cleanText(row.resource_id || row.resourceId, 200);
+  const documentName = cleanText(row.document_name || row.documentName || row.name, 1000);
+  if (!noticeId || !resourceId || !documentName) return null;
+  const extension = cleanText(row.extension || (documentName.includes('.') ? documentName.split('.').pop().toLowerCase() : ''), 32);
+  return {
+    notice_id: noticeId,
+    resource_id: resourceId,
+    document_name: documentName,
+    extension,
+    format_group: cleanText(row.format_group || row.formatGroup || row.format, 100),
+    size_bytes: Number.isFinite(Number(row.size_bytes ?? row.sizeBytes)) ? Number(row.size_bytes ?? row.sizeBytes) : null,
+    agency: cleanText(row.agency || row.organization, 1200),
+    posted_date: cleanDate(row.posted_date || row.postedDate),
+    notice_title: cleanText(row.notice_title || row.noticeTitle || row.title, 1000),
+    solicitation_number: cleanText(row.solicitation_number || row.solicitationNumber, 500),
+    notice_type: cleanText(row.notice_type || row.noticeType || row.source, 250),
+    download_url: cleanText(row.download_url || row.downloadUrl || row.downloadLink, 1200),
+    sam_url: cleanText(row.sam_url || row.samUrl || row.uiLink || `https://sam.gov/opp/${encodeURIComponent(noticeId)}/view`, 1000),
+    source_json: row.source_json || row.sourceJson || row,
+    last_seen_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+}
+
+async function supabaseUpsert(request, env, table, rows, onConflict) {
+  const cfg = supabaseConfig(env);
+  if (!cfg.ready) {
+    return errorResponse(request, env, 'Supabase indexing is not configured on the Worker. Add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY as Cloudflare Worker secrets/variables.', 501);
+  }
+  if (!Array.isArray(rows) || !rows.length) {
+    return jsonResponse(request, env, { ok: true, indexed: 0, skipped: 0 });
+  }
+
+  const payload = rows.slice(0, 500);
+  const target = `${cfg.url}/rest/v1/${table}?on_conflict=${encodeURIComponent(onConflict)}`;
+  const upstream = await fetch(target, {
+    method: 'POST',
+    headers: {
+      'apikey': cfg.key,
+      'Authorization': `Bearer ${cfg.key}`,
+      'Content-Type': 'application/json',
+      'Prefer': 'resolution=merge-duplicates,return=minimal',
+    },
+    body: JSON.stringify(payload),
+  });
+  const text = await upstream.text();
+  if (!upstream.ok) {
+    return errorResponse(request, env, `Supabase upsert failed: ${text.slice(0, 600)}`, upstream.status);
+  }
+  return jsonResponse(request, env, { ok: true, indexed: payload.length, skipped: rows.length - payload.length });
+}
+
+async function handleIndexRequest(request, env, kind) {
+  if (request.method !== 'POST') return errorResponse(request, env, 'Index routes require POST.', 405);
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return errorResponse(request, env, 'Request body must be JSON.', 400);
+  }
+  const inputRows = Array.isArray(body) ? body : Array.isArray(body.rows) ? body.rows : [];
+  if (kind === 'opportunities') {
+    const rows = inputRows.map(normalizeOpportunity).filter(Boolean);
+    return supabaseUpsert(request, env, 'opportunities', rows, 'notice_id');
+  }
+  const rows = inputRows.map(normalizeDocument).filter(Boolean);
+  return supabaseUpsert(request, env, 'documents', rows, 'notice_id,resource_id');
+}
+
 async function handleRequest(request, env) {
   const url = new URL(request.url);
   const path = url.pathname.replace(/\/+$/, '') || '/';
@@ -138,17 +251,27 @@ async function handleRequest(request, env) {
     return new Response(null, { status: 204, headers: corsHeaders(request, env) });
   }
 
-  if (request.method !== 'GET' && request.method !== 'HEAD') {
-    return errorResponse(request, env, 'Only GET, HEAD, and OPTIONS are allowed.', 405);
-  }
-
   if (path === '/' || path === '/health') {
+    const cfg = supabaseConfig(env);
     return jsonResponse(request, env, {
       ok: true,
       name: 'samgovsearch no-api proxy',
       usesApiKey: false,
-      endpoints: ['/search', '/details/{noticeId}', '/resources/{noticeId}', '/download/{resourceId}'],
+      supabaseIndexing: cfg.ready,
+      endpoints: ['/search', '/details/{noticeId}', '/resources/{noticeId}', '/download/{resourceId}', '/index/opportunities', '/index/documents'],
     });
+  }
+
+  if (path === '/index/opportunities') {
+    return handleIndexRequest(request, env, 'opportunities');
+  }
+
+  if (path === '/index/documents') {
+    return handleIndexRequest(request, env, 'documents');
+  }
+
+  if (request.method !== 'GET' && request.method !== 'HEAD') {
+    return errorResponse(request, env, 'Only GET, HEAD, POST, and OPTIONS are allowed.', 405);
   }
 
   if (path === '/search') {
