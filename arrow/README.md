@@ -76,31 +76,4 @@ python -m arrow          # REPL
 python -m arrow tui      # full-screen UI
 ```
 
-## License
-
-MIT — see `LICENSE`.
-
-## Support the Project
-
-If Arrow saves you time or helps you find better contracts, consider buying me a coffee.
-
-Venmo: @quincyluce123
-
-Arrow is built and maintained solo — support helps accelerate new features.
-
-## Hire Me (Palantir 👀)
-
-If you want something custom built, improvements to Arrow, or help with similar systems — I’m available.
-
-I’m especially interested in work around:
-
-data systems
-infrastructure
-intelligence / decision-support tools
-
-Email: quincyluce@gmail.com
-
-LinkedIn: https://www.linkedin.com/in/quincy-luce-ab2226326/
-
-
   
