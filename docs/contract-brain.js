@@ -157,7 +157,7 @@
 
   function savedNotebooks() { return loadJson(STORAGE.saved, []); }
   function snapshots() { return loadJson(STORAGE.snapshots, {}); }
-  function history() { return loadJson(STORAGE.history, {}); }
+  function changeHistory() { return loadJson(STORAGE.history, {}); }
 
   function updateSavedCount() { el.savedCount.textContent = String(savedNotebooks().length); }
 
@@ -171,14 +171,14 @@
   }
 
   function lastHistoryEntries() {
-    const rows=(history()[state.noticeId]||[]).slice().sort((a,b)=>String(b.detectedAt).localeCompare(String(a.detectedAt)));
+    const rows=(changeHistory()[state.noticeId]||[]).slice().sort((a,b)=>String(b.detectedAt).localeCompare(String(a.detectedAt)));
     return rows;
   }
 
   function persistSnapshot(snapshot, changes) {
     const snaps=snapshots(); snaps[state.noticeId]=snapshot; saveJson(STORAGE.snapshots,snaps);
     if (changes.length) {
-      const all=history(); const existing=all[state.noticeId]||[];
+      const all=changeHistory(); const existing=all[state.noticeId]||[];
       all[state.noticeId]=[{detectedAt:snapshot.capturedAt,changes},...existing].slice(0,80); saveJson(STORAGE.history,all);
     }
   }
@@ -204,7 +204,7 @@
       state.noticeId=noticeId; state.opportunity=data.opportunity; state.documents=data.documents; state.indexedDocuments=data.indexedDocs||[];
       const snaps=snapshots(); state.currentSnapshot=snaps[noticeId]||null; state.currentChanges=[];
       if (!state.currentSnapshot) { const baseline=snapshotFor(state.opportunity,state.documents); persistSnapshot(baseline,[]); state.currentSnapshot=baseline; }
-      const url=new URL(location.href); url.searchParams.set('noticeId',noticeId); history.replaceState(null,'',url);
+      const url=new URL(location.href); url.searchParams.set('noticeId',noticeId); window.history.replaceState(null,'',url);
       el.emptyState.classList.add('hidden'); el.notebook.classList.remove('hidden');
       renderHeader(); setView(options.view||state.view||'overview'); saveCurrentNotebook(true); updateTopRefresh();
       toast(`Opened ${state.opportunity.title}`);
