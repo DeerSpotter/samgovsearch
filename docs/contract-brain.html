@@ -77,7 +77,10 @@
 
           <section class="cb-search-panel">
             <div class="cb-search-grid">
-              <div class="cb-search-field"><label>Keywords / solicitation / NAICS / notice IDs</label><textarea id="cbTerms" placeholder="One search term per line\nExample: Patriot\n336414\nW31P4Q"></textarea><label class="cb-check"><input id="cbNaicsMode" type="checkbox" checked> Treat numeric-only terms as NAICS</label></div>
+              <div class="cb-search-field"><label>Keywords / solicitation / NAICS / notice IDs</label><textarea id="cbTerms" placeholder="One search term per line
+Example: Patriot
+336414
+W31P4Q"></textarea><label class="cb-check"><input id="cbNaicsMode" type="checkbox" checked> Treat numeric-only terms as NAICS</label></div>
               <div class="cb-search-field"><label>Posted From</label><input id="cbPostedFrom" placeholder="MM/DD/YYYY"></div>
               <div class="cb-search-field"><label>Posted To</label><input id="cbPostedTo" placeholder="MM/DD/YYYY"><label class="cb-check"><input id="cbAllDates" type="checkbox"> Search all dates since 2018</label></div>
               <div class="cb-search-field"><label>Status</label><select id="cbStatus"><option value="active" selected>Active</option><option value="">All / SAM default</option><option value="inactive">Inactive</option><option value="archived">Archived</option><option value="cancelled">Cancelled</option></select></div>
@@ -113,5 +116,6 @@
   </div>
   <script src="contract-brain.js"></script>
   <script src="contract-brain-search.js"></script>
+  <script src="contract-brain-ontology.js"></script>
 </body>
 </html>
