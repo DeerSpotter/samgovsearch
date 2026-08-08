@@ -10,368 +10,51 @@
   const DB_VERSION = 1;
 
   const state = {
-    noticeId: '',
-    lastScannedNotice: '',
-    worker: null,
-    workerReady: false,
-    paused: false,
-    scanning: false,
-    current: null,
-    jobs: [],
-    contexts: new Map(),
-    engines: new Map(),
-    activity: [],
-    panelOpen: false,
-    autoOpened: false,
-    db: null,
+    noticeId: '', lastScannedNotice: '', worker: null, workerReady: false, paused: false, scanning: false,
+    current: null, jobs: [], contexts: new Map(), engines: new Map(), activity: [], panelOpen: false,
+    autoOpened: false, db: null,
   };
 
   const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const now = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const now = () => new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' });
   const noticeFromUrl = () => new URLSearchParams(location.search).get('noticeId') || '';
   const sourceKey = source => `${source.resourceId}:${source.sha256}:${source.parserVersion || PARSER_VERSION}`;
 
-  function injectStyles() {
-    if (document.getElementById('cbBrowserPipelineStyles')) return;
-    const style = document.createElement('style');
-    style.id = 'cbBrowserPipelineStyles';
-    style.textContent = `
-      .cb-evidence-button{position:relative}.cb-evidence-button.busy::after{content:'';position:absolute;right:5px;top:5px;width:6px;height:6px;border-radius:50%;background:var(--cyan);box-shadow:0 0 10px var(--cyan);animation:cbPulse 1.2s infinite}@keyframes cbPulse{50%{opacity:.3}}
-      .cb-pipeline-panel{position:fixed;right:18px;bottom:18px;width:min(430px,calc(100vw - 36px));max-height:min(680px,calc(100vh - 105px));z-index:80;background:#071522;border:1px solid #23445d;border-radius:10px;box-shadow:0 22px 60px rgba(0,0,0,.45);overflow:hidden;display:flex;flex-direction:column}.cb-pipeline-panel.hidden{display:none}.cb-pipeline-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:13px 14px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#0b2134,#081827)}.cb-pipeline-head h3{margin:0;font-size:14px}.cb-pipeline-head p{margin:3px 0 0;color:var(--muted);font-size:10px;line-height:1.35}.cb-pipeline-close{border:0;background:transparent;color:#8ea7bb;font-size:18px;cursor:pointer}.cb-pipeline-body{padding:12px 14px;overflow:auto}.cb-pipeline-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.cb-pipeline-stat{border:1px solid var(--line);background:#091927;border-radius:7px;padding:8px}.cb-pipeline-stat span{display:block;color:var(--muted);font-size:8px;text-transform:uppercase;letter-spacing:.07em}.cb-pipeline-stat strong{font-size:16px}.cb-pipeline-progress{height:6px;border-radius:99px;background:#10283b;overflow:hidden;margin:10px 0}.cb-pipeline-progress>i{display:block;height:100%;width:0;background:linear-gradient(90deg,#17c8de,#43e6f6);transition:width .25s ease}.cb-pipeline-current{padding:9px;border:1px solid #1d3c54;background:#081725;border-radius:7px;margin-bottom:10px}.cb-pipeline-current strong{display:block;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cb-pipeline-current small{display:block;color:#86a1b6;font-size:9px;margin-top:3px}.cb-engine-list,.cb-activity-list{display:grid;gap:6px}.cb-pipeline-section-title{font-size:9px;color:#6d879e;text-transform:uppercase;letter-spacing:.1em;margin:11px 0 6px}.cb-engine,.cb-activity{display:grid;grid-template-columns:12px minmax(0,1fr) auto;gap:7px;align-items:start;font-size:10px;padding:6px 0;border-bottom:1px solid rgba(68,96,120,.18)}.cb-engine:last-child,.cb-activity:last-child{border-bottom:0}.cb-engine-dot{width:7px;height:7px;margin-top:3px;border-radius:50%;background:#50677c}.cb-engine-dot.ready,.cb-engine-dot.complete{background:#42d48c}.cb-engine-dot.loading,.cb-engine-dot.running{background:#29d9ed;box-shadow:0 0 7px rgba(41,217,237,.4)}.cb-engine-dot.failed{background:#ff6b6b}.cb-engine-dot.review{background:#e7b553}.cb-engine span,.cb-activity span{min-width:0}.cb-engine small,.cb-activity small{color:#61798f;font-size:8px;white-space:nowrap}.cb-pipeline-actions{display:flex;gap:7px;margin-top:11px}.cb-pipeline-actions .btn{font-size:9px;padding:7px 9px}.cb-browser-note{margin-top:9px;color:#698398;font-size:9px;line-height:1.4}
-      @media(max-width:700px){.cb-pipeline-panel{right:8px;bottom:8px;width:calc(100vw - 16px)}.cb-pipeline-summary{grid-template-columns:1fr 1fr}}
-    `;
-    document.head.appendChild(style);
-  }
+  function injectStyles(){if(document.getElementById('cbBrowserPipelineStyles'))return;const style=document.createElement('style');style.id='cbBrowserPipelineStyles';style.textContent=`
+  .cb-evidence-button{position:relative}.cb-evidence-button.busy::after{content:'';position:absolute;right:5px;top:5px;width:6px;height:6px;border-radius:50%;background:var(--cyan);box-shadow:0 0 10px var(--cyan);animation:cbPulse 1.2s infinite}@keyframes cbPulse{50%{opacity:.3}}
+  .cb-pipeline-panel{position:fixed;right:18px;bottom:18px;width:min(430px,calc(100vw - 36px));max-height:min(680px,calc(100vh - 105px));z-index:80;background:#071522;border:1px solid #23445d;border-radius:10px;box-shadow:0 22px 60px rgba(0,0,0,.45);overflow:hidden;display:flex;flex-direction:column}.cb-pipeline-panel.hidden{display:none}.cb-pipeline-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:13px 14px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#0b2134,#081827)}.cb-pipeline-head h3{margin:0;font-size:14px}.cb-pipeline-head p{margin:3px 0 0;color:var(--muted);font-size:10px;line-height:1.35}.cb-pipeline-close{border:0;background:transparent;color:#8ea7bb;font-size:18px;cursor:pointer}.cb-pipeline-body{padding:12px 14px;overflow:auto}.cb-pipeline-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.cb-pipeline-stat{border:1px solid var(--line);background:#091927;border-radius:7px;padding:8px}.cb-pipeline-stat span{display:block;color:var(--muted);font-size:8px;text-transform:uppercase;letter-spacing:.07em}.cb-pipeline-stat strong{font-size:16px}.cb-pipeline-progress{height:6px;border-radius:99px;background:#10283b;overflow:hidden;margin:10px 0}.cb-pipeline-progress>i{display:block;height:100%;width:0;background:linear-gradient(90deg,#17c8de,#43e6f6);transition:width .25s ease}.cb-pipeline-current{padding:9px;border:1px solid #1d3c54;background:#081725;border-radius:7px;margin-bottom:10px}.cb-pipeline-current strong{display:block;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cb-pipeline-current small{display:block;color:#86a1b6;font-size:9px;margin-top:3px}.cb-engine-list,.cb-activity-list{display:grid;gap:6px}.cb-pipeline-section-title{font-size:9px;color:#6d879e;text-transform:uppercase;letter-spacing:.1em;margin:11px 0 6px}.cb-engine,.cb-activity{display:grid;grid-template-columns:12px minmax(0,1fr) auto;gap:7px;align-items:start;font-size:10px;padding:6px 0;border-bottom:1px solid rgba(68,96,120,.18)}.cb-engine:last-child,.cb-activity:last-child{border-bottom:0}.cb-engine-dot{width:7px;height:7px;margin-top:3px;border-radius:50%;background:#50677c}.cb-engine-dot.ready,.cb-engine-dot.complete{background:#42d48c}.cb-engine-dot.loading,.cb-engine-dot.running{background:#29d9ed;box-shadow:0 0 7px rgba(41,217,237,.4)}.cb-engine-dot.failed{background:#ff6b6b}.cb-engine-dot.review{background:#e7b553}.cb-engine span,.cb-activity span{min-width:0}.cb-engine small,.cb-activity small{color:#61798f;font-size:8px;white-space:nowrap}.cb-pipeline-actions{display:flex;gap:7px;margin-top:11px}.cb-pipeline-actions .btn{font-size:9px;padding:7px 9px}.cb-browser-note{margin-top:9px;color:#698398;font-size:9px;line-height:1.4}@media(max-width:700px){.cb-pipeline-panel{right:8px;bottom:8px;width:calc(100vw - 16px)}.cb-pipeline-summary{grid-template-columns:1fr 1fr}}`;document.head.appendChild(style);}
 
-  function ensureUi() {
-    injectStyles();
-    const footerMode = document.querySelector('.sidebar-footer span');
-    if (footerMode && /manual refresh mode/i.test(footerMode.textContent || '')) footerMode.textContent = 'Automatic evidence mode';
-    if (!document.getElementById('cbEvidenceButton')) {
-      const actions = document.querySelector('.top-actions');
-      if (actions) {
-        const button = document.createElement('button');
-        button.id = 'cbEvidenceButton';
-        button.className = 'btn btn-secondary cb-evidence-button';
-        button.textContent = 'Evidence idle';
-        button.addEventListener('click', () => togglePanel());
-        actions.insertBefore(button, actions.querySelector('#refreshTopBtn'));
-      }
-    }
-    if (!document.getElementById('cbEvidenceSideBtn')) {
-      const workflowLabel = [...document.querySelectorAll('.nav-label')].find(x => x.textContent.trim() === 'WORKFLOW');
-      const section = workflowLabel?.closest('.nav-section');
-      if (section) {
-        const button = document.createElement('button');
-        button.id = 'cbEvidenceSideBtn';
-        button.className = 'nav-item';
-        button.innerHTML = '◌ <span>Background Evidence</span><b id="cbEvidenceSideCount">0</b>';
-        button.addEventListener('click', () => togglePanel(true));
-        section.insertBefore(button, section.querySelector('#refreshSideBtn'));
-      }
-    }
-    if (!document.getElementById('cbPipelinePanel')) {
-      const panel = document.createElement('aside');
-      panel.id = 'cbPipelinePanel';
-      panel.className = 'cb-pipeline-panel hidden';
-      panel.innerHTML = `
-        <div class="cb-pipeline-head"><div><h3>Background Evidence</h3><p>Browser-native extraction continues while you use Contract Brain. Completed evidence is reused on later opens.</p></div><button class="cb-pipeline-close" id="cbPipelineClose">×</button></div>
-        <div class="cb-pipeline-body">
-          <div class="cb-pipeline-summary">
-            <div class="cb-pipeline-stat"><span>Sources</span><strong id="cbPipeTotal">0</strong></div>
-            <div class="cb-pipeline-stat"><span>Ready</span><strong id="cbPipeReady">0</strong></div>
-            <div class="cb-pipeline-stat"><span>Queued</span><strong id="cbPipeQueued">0</strong></div>
-            <div class="cb-pipeline-stat"><span>Issues</span><strong id="cbPipeIssues">0</strong></div>
-          </div>
-          <div class="cb-pipeline-progress"><i id="cbPipeBar"></i></div>
-          <div class="cb-pipeline-current"><strong id="cbPipeCurrent">Waiting for a Contract Notebook</strong><small id="cbPipeStage">No background work running.</small></div>
-          <div class="cb-pipeline-section-title">Document engines</div><div id="cbEngineList" class="cb-engine-list"></div>
-          <div class="cb-pipeline-section-title">Activity</div><div id="cbActivityList" class="cb-activity-list"></div>
-          <div class="cb-pipeline-actions"><button id="cbPipelinePause" class="btn btn-secondary">Pause</button><button id="cbPipelineRescan" class="btn btn-secondary">Rescan Sources</button></div>
-          <div class="cb-browser-note">No Python or pip install is required. PDF, Office/ZIP, and OCR engines load in the browser only when needed. OCR is not loaded unless a PDF has zero native text.</div>
-        </div>`;
-      document.body.appendChild(panel);
-      panel.querySelector('#cbPipelineClose').addEventListener('click', () => togglePanel(false));
-      panel.querySelector('#cbPipelinePause').addEventListener('click', togglePause);
-      panel.querySelector('#cbPipelineRescan').addEventListener('click', () => scan(true));
-    }
-    render();
-  }
+  function ensureUi(){injectStyles();const footerMode=document.querySelector('.sidebar-footer span');if(footerMode&&/manual refresh mode/i.test(footerMode.textContent||''))footerMode.textContent='Automatic evidence mode';if(!document.getElementById('cbEvidenceButton')){const actions=document.querySelector('.top-actions');if(actions){const button=document.createElement('button');button.id='cbEvidenceButton';button.className='btn btn-secondary cb-evidence-button';button.textContent='Evidence idle';button.addEventListener('click',()=>togglePanel());actions.insertBefore(button,actions.querySelector('#refreshTopBtn'));}}if(!document.getElementById('cbEvidenceSideBtn')){const workflowLabel=[...document.querySelectorAll('.nav-label')].find(x=>x.textContent.trim()==='WORKFLOW');const section=workflowLabel?.closest('.nav-section');if(section){const button=document.createElement('button');button.id='cbEvidenceSideBtn';button.className='nav-item';button.innerHTML='◌ <span>Background Evidence</span><b id="cbEvidenceSideCount">0</b>';button.addEventListener('click',()=>togglePanel(true));section.insertBefore(button,section.querySelector('#refreshSideBtn'));}}if(!document.getElementById('cbPipelinePanel')){const panel=document.createElement('aside');panel.id='cbPipelinePanel';panel.className='cb-pipeline-panel hidden';panel.innerHTML=`<div class="cb-pipeline-head"><div><h3>Background Evidence</h3><p>Browser-native extraction continues while you use Contract Brain. Completed evidence is reused on later opens.</p></div><button class="cb-pipeline-close" id="cbPipelineClose">×</button></div><div class="cb-pipeline-body"><div class="cb-pipeline-summary"><div class="cb-pipeline-stat"><span>Sources</span><strong id="cbPipeTotal">0</strong></div><div class="cb-pipeline-stat"><span>Ready</span><strong id="cbPipeReady">0</strong></div><div class="cb-pipeline-stat"><span>Queued</span><strong id="cbPipeQueued">0</strong></div><div class="cb-pipeline-stat"><span>Issues</span><strong id="cbPipeIssues">0</strong></div></div><div class="cb-pipeline-progress"><i id="cbPipeBar"></i></div><div class="cb-pipeline-current"><strong id="cbPipeCurrent">Waiting for a Contract Notebook</strong><small id="cbPipeStage">No background work running.</small></div><div class="cb-pipeline-section-title">Document engines</div><div id="cbEngineList" class="cb-engine-list"></div><div class="cb-pipeline-section-title">Activity</div><div id="cbActivityList" class="cb-activity-list"></div><div class="cb-pipeline-actions"><button id="cbPipelinePause" class="btn btn-secondary">Pause</button><button id="cbPipelineRescan" class="btn btn-secondary">Rescan Sources</button></div><div class="cb-browser-note">No Python or pip install is required. PDF, Office/ZIP, and OCR engines load in the browser only when needed. OCR is not loaded unless a PDF has zero native text.</div></div>`;document.body.appendChild(panel);panel.querySelector('#cbPipelineClose').addEventListener('click',()=>togglePanel(false));panel.querySelector('#cbPipelinePause').addEventListener('click',togglePause);panel.querySelector('#cbPipelineRescan').addEventListener('click',()=>scan(true));}render();}
+  function togglePanel(force){ensureUi();state.panelOpen=typeof force==='boolean'?force:!state.panelOpen;document.getElementById('cbPipelinePanel')?.classList.toggle('hidden',!state.panelOpen);}
+  function addActivity(message,status='complete'){state.activity.unshift({message,status,at:now()});state.activity=state.activity.slice(0,14);render();}
+  function totals(){const total=state.jobs.length;const ready=state.jobs.filter(j=>['complete','cached','synced','local'].includes(j.status)).length;const queued=state.jobs.filter(j=>['queued','running','syncing'].includes(j.status)).length;const issues=state.jobs.filter(j=>['failed','review_required'].includes(j.status)).length;return{total,ready,queued,issues};}
+  function render(){ensureUiOnce();const t=totals();const set=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=String(value);};set('cbPipeTotal',t.total);set('cbPipeReady',t.ready);set('cbPipeQueued',t.queued);set('cbPipeIssues',t.issues);set('cbEvidenceSideCount',t.queued||t.issues||0);const bar=document.getElementById('cbPipeBar');if(bar)bar.style.width=`${t.total?Math.round((t.ready+t.issues)*100/t.total):0}%`;const button=document.getElementById('cbEvidenceButton');if(button){button.textContent=state.noticeId?`Evidence ${t.ready}/${t.total||0}`:'Evidence idle';button.classList.toggle('busy',!!state.current||t.queued>0);}const current=state.current;set('cbPipeCurrent',current?current.name:(state.noticeId?(t.total?'Background queue idle':'No public sources found'):'Waiting for a Contract Notebook'));set('cbPipeStage',current?`${current.stage||'Processing'}${current.detail?` • ${current.detail}`:''}`:(state.paused?'Processing paused.':'No background work running.'));const engineList=document.getElementById('cbEngineList');if(engineList){const defaults=[['SHA-256 engine','ready','Built into your browser'],['PDF engine','idle','Loads when a PDF needs processing'],['Office / ZIP engine','idle','Loads for DOCX, PPTX, XLSX, or ZIP'],['OCR engine','idle','Loads only for zero-native-text PDFs']];engineList.innerHTML=defaults.map(([name,fallbackStatus,fallbackDetail])=>{const item=state.engines.get(name)||{status:fallbackStatus,detail:fallbackDetail};return`<div class="cb-engine"><i class="cb-engine-dot ${esc(item.status)}"></i><span><strong>${esc(name)}</strong><br><small>${esc(item.detail||'')}</small></span><small>${esc(item.status)}</small></div>`;}).join('');}const list=document.getElementById('cbActivityList');if(list)list.innerHTML=state.activity.length?state.activity.map(a=>`<div class="cb-activity"><i class="cb-engine-dot ${esc(a.status)}"></i><span>${esc(a.message)}</span><small>${esc(a.at)}</small></div>`).join(''):'<div class="muted" style="font-size:10px">Activity will appear here as sources are checked and processed.</div>';const pause=document.getElementById('cbPipelinePause');if(pause)pause.textContent=state.paused?'Resume':'Pause';}
+  function ensureUiOnce(){if(!document.getElementById('cbPipelinePanel')&&document.body)ensureUi();}
 
-  function togglePanel(force) {
-    ensureUi();
-    state.panelOpen = typeof force === 'boolean' ? force : !state.panelOpen;
-    document.getElementById('cbPipelinePanel')?.classList.toggle('hidden', !state.panelOpen);
-  }
+  async function openDb(){if(state.db)return state.db;state.db=await new Promise((resolve,reject)=>{const request=indexedDB.open(DB_NAME,DB_VERSION);request.onupgradeneeded=()=>{const db=request.result;if(!db.objectStoreNames.contains('sourceSummary'))db.createObjectStore('sourceSummary',{keyPath:'sourceKey'});if(!db.objectStoreNames.contains('sourceRows')){const rows=db.createObjectStore('sourceRows',{keyPath:'id'});rows.createIndex('sourceKey','sourceKey',{unique:false});}};request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);});return state.db;}
+  async function idbPut(store,value){const db=await openDb();return new Promise((resolve,reject)=>{const tx=db.transaction(store,'readwrite');tx.objectStore(store).put(value);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}
+  async function summariesForResource(resourceId){const db=await openDb();return new Promise((resolve,reject)=>{const out=[];const request=db.transaction('sourceSummary','readonly').objectStore('sourceSummary').openCursor();request.onsuccess=()=>{const c=request.result;if(!c){resolve(out);return;}if(c.value.resourceId===resourceId)out.push(c.value);c.continue();};request.onerror=()=>reject(request.error);});}
+  async function rowsForSource(key){const db=await openDb();return new Promise((resolve,reject)=>{const out=[];const index=db.transaction('sourceRows','readonly').objectStore('sourceRows').index('sourceKey');const request=index.openCursor(IDBKeyRange.only(key));request.onsuccess=()=>{const c=request.result;if(!c){out.sort((a,b)=>(a.sort_index||0)-(b.sort_index||0));resolve(out);return;}out.push(c.value);c.continue();};request.onerror=()=>reject(request.error);});}
+  async function storeRows(key,rows){const db=await openDb();return new Promise((resolve,reject)=>{const tx=db.transaction('sourceRows','readwrite');const store=tx.objectStore('sourceRows');rows.forEach((row,i)=>store.put({...row,sourceKey:key,id:`${key}:${row.sort_index??i}:${row.locator}`}));tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}
 
-  function addActivity(message, status = 'complete') {
-    state.activity.unshift({ message, status, at: now() });
-    state.activity = state.activity.slice(0, 14);
-    render();
-  }
+  async function supabaseGet(path){const response=await fetch(`${SUPABASE_URL}/rest/v1/${path}`,{headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`,Accept:'application/json'},cache:'no-store'});if(!response.ok)throw new Error(`${response.status}: ${(await response.text()).slice(0,240)}`);return response.json();}
+  async function edge(action,payload){const response=await fetch(EDGE_URL,{method:'POST',headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`,'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify({action,...payload})});const body=await response.json().catch(()=>({}));if(!response.ok||body.ok===false)throw new Error(body.error||`evidence sync failed ${response.status}`);return body;}
+  async function liveDocuments(noticeId){try{const response=await fetch(`${WORKER_BASE}/resources/${encodeURIComponent(noticeId)}`,{headers:{Accept:'application/json'},cache:'no-store'});if(!response.ok)throw new Error(String(response.status));const raw=await response.json();const out=[];const groups=raw?._embedded?.opportunityAttachmentList;if(Array.isArray(groups))for(const group of groups)for(const a of(Array.isArray(group?.attachments)?group.attachments:[])){if(!a||String(a.deletedFlag||'')==='1')continue;const resourceId=String(a.resourceId||'').trim(),name=String(a.name||a.filename||'').trim();if(resourceId&&name)out.push({noticeId,resourceId,name,sizeBytes:Number(String(a.size??'').replace(/,/g,''))||null});}return out;}catch{return[];}}
+  async function indexedDocuments(noticeId){const rows=await supabaseGet(`document_analysis_status?select=notice_id,resource_id,document_name,sha256,extraction_status,logical_row_count,parser_version,completed_at&notice_id=eq.${encodeURIComponent(noticeId)}`);return(rows||[]).map(r=>({noticeId:r.notice_id,resourceId:r.resource_id,name:r.document_name,serverStatus:r.extraction_status,serverSha:r.sha256,serverRows:r.logical_row_count,serverParser:r.parser_version,completedAt:r.completed_at}));}
+  function mergeDocs(live,indexed){const map=new Map();for(const d of indexed)if(d.resourceId)map.set(d.resourceId,{...d});for(const d of live)if(d.resourceId)map.set(d.resourceId,{...(map.get(d.resourceId)||{}),...d});return[...map.values()].sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));}
 
-  function totals() {
-    const total = state.jobs.length;
-    const ready = state.jobs.filter(j => ['complete','cached','synced','local'].includes(j.status)).length;
-    const queued = state.jobs.filter(j => ['queued','running','syncing'].includes(j.status)).length;
-    const issues = state.jobs.filter(j => ['failed','review_required'].includes(j.status)).length;
-    return { total, ready, queued, issues };
-  }
-
-  function render() {
-    ensureUiOnce();
-    const t = totals();
-    const set = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = String(value); };
-    set('cbPipeTotal', t.total); set('cbPipeReady', t.ready); set('cbPipeQueued', t.queued); set('cbPipeIssues', t.issues); set('cbEvidenceSideCount', t.queued || t.issues || 0);
-    const bar = document.getElementById('cbPipeBar'); if (bar) bar.style.width = `${t.total ? Math.round((t.ready + t.issues) * 100 / t.total) : 0}%`;
-    const button = document.getElementById('cbEvidenceButton');
-    if (button) {
-      button.textContent = state.noticeId ? `Evidence ${t.ready}/${t.total || 0}` : 'Evidence idle';
-      button.classList.toggle('busy', !!state.current || t.queued > 0);
-    }
-    const current = state.current;
-    set('cbPipeCurrent', current ? current.name : (state.noticeId ? (t.total ? 'Background queue idle' : 'No public sources found') : 'Waiting for a Contract Notebook'));
-    set('cbPipeStage', current ? `${current.stage || 'Processing'}${current.detail ? ` • ${current.detail}` : ''}` : (state.paused ? 'Processing paused.' : 'No background work running.'));
-
-    const engineList = document.getElementById('cbEngineList');
-    if (engineList) {
-      const defaults = [
-        ['SHA-256 engine','ready','Built into your browser'],
-        ['PDF engine','idle','Loads when a PDF needs processing'],
-        ['Office / ZIP engine','idle','Loads for DOCX, PPTX, XLSX, or ZIP'],
-        ['OCR engine','idle','Loads only for zero-native-text PDFs'],
-      ];
-      engineList.innerHTML = defaults.map(([name, fallbackStatus, fallbackDetail]) => {
-        const item = state.engines.get(name) || { status:fallbackStatus, detail:fallbackDetail };
-        return `<div class="cb-engine"><i class="cb-engine-dot ${esc(item.status)}"></i><span><strong>${esc(name)}</strong><br><small>${esc(item.detail || '')}</small></span><small>${esc(item.status)}</small></div>`;
-      }).join('');
-    }
-    const list = document.getElementById('cbActivityList');
-    if (list) list.innerHTML = state.activity.length ? state.activity.map(a => `<div class="cb-activity"><i class="cb-engine-dot ${esc(a.status)}"></i><span>${esc(a.message)}</span><small>${esc(a.at)}</small></div>`).join('') : '<div class="muted" style="font-size:10px">Activity will appear here as sources are checked and processed.</div>';
-    const pause = document.getElementById('cbPipelinePause'); if (pause) pause.textContent = state.paused ? 'Resume' : 'Pause';
-  }
-
-  function ensureUiOnce() {
-    if (!document.getElementById('cbPipelinePanel') && document.body) ensureUi();
-  }
-
-  async function openDb() {
-    if (state.db) return state.db;
-    state.db = await new Promise((resolve, reject) => {
-      const request = indexedDB.open(DB_NAME, DB_VERSION);
-      request.onupgradeneeded = () => {
-        const db = request.result;
-        if (!db.objectStoreNames.contains('sourceSummary')) db.createObjectStore('sourceSummary', { keyPath:'sourceKey' });
-        if (!db.objectStoreNames.contains('sourceRows')) {
-          const rows = db.createObjectStore('sourceRows', { keyPath:'id' });
-          rows.createIndex('sourceKey', 'sourceKey', { unique:false });
-        }
-      };
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
-    return state.db;
-  }
-
-  async function idbPut(store, value) {
-    const db = await openDb();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(store, 'readwrite'); tx.objectStore(store).put(value); tx.oncomplete = resolve; tx.onerror = () => reject(tx.error);
-    });
-  }
-  async function summariesForResource(resourceId) {
-    const db = await openDb();
-    return new Promise((resolve, reject) => {
-      const out = []; const request = db.transaction('sourceSummary','readonly').objectStore('sourceSummary').openCursor();
-      request.onsuccess = () => { const c=request.result; if(!c){resolve(out);return;} if(c.value.resourceId===resourceId)out.push(c.value); c.continue(); };
-      request.onerror = () => reject(request.error);
-    });
-  }
-  async function rowsForSource(key) {
-    const db = await openDb();
-    return new Promise((resolve, reject) => {
-      const out=[]; const index=db.transaction('sourceRows','readonly').objectStore('sourceRows').index('sourceKey'); const request=index.openCursor(IDBKeyRange.only(key));
-      request.onsuccess=()=>{const c=request.result;if(!c){out.sort((a,b)=>(a.sort_index||0)-(b.sort_index||0));resolve(out);return;}out.push(c.value);c.continue();}; request.onerror=()=>reject(request.error);
-    });
-  }
-  async function storeRows(key, rows) {
-    const db = await openDb();
-    return new Promise((resolve, reject) => {
-      const tx=db.transaction('sourceRows','readwrite'); const store=tx.objectStore('sourceRows');
-      rows.forEach((row,i)=>store.put({ ...row, sourceKey:key, id:`${key}:${row.sort_index ?? i}:${row.locator}` }));
-      tx.oncomplete=resolve; tx.onerror=()=>reject(tx.error);
-    });
-  }
-
-  async function supabaseGet(path) {
-    const response = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { headers:{ apikey:SUPABASE_KEY, Authorization:`Bearer ${SUPABASE_KEY}`, Accept:'application/json' }, cache:'no-store' });
-    if (!response.ok) throw new Error(`${response.status}: ${(await response.text()).slice(0,240)}`);
-    return response.json();
-  }
-
-  async function edge(action, payload) {
-    const response = await fetch(EDGE_URL, { method:'POST', headers:{ apikey:SUPABASE_KEY, Authorization:`Bearer ${SUPABASE_KEY}`, 'Content-Type':'application/json', Accept:'application/json' }, body:JSON.stringify({ action, ...payload }) });
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok || body.ok === false) throw new Error(body.error || `evidence sync failed ${response.status}`);
-    return body;
-  }
-
-  async function liveDocuments(noticeId) {
-    try {
-      const response = await fetch(`${WORKER_BASE}/resources/${encodeURIComponent(noticeId)}`, { headers:{Accept:'application/json'}, cache:'no-store' });
-      if (!response.ok) throw new Error(String(response.status));
-      const raw = await response.json(); const out=[];
-      const groups = raw?._embedded?.opportunityAttachmentList;
-      if (Array.isArray(groups)) for (const group of groups) for (const a of (Array.isArray(group?.attachments) ? group.attachments : [])) {
-        if (!a || String(a.deletedFlag || '') === '1') continue;
-        const resourceId=String(a.resourceId||'').trim(), name=String(a.name||a.filename||'').trim();
-        if (resourceId && name) out.push({ noticeId, resourceId, name, sizeBytes:Number(String(a.size??'').replace(/,/g,''))||null });
-      }
-      return out;
-    } catch { return []; }
-  }
-
-  async function indexedDocuments(noticeId) {
-    const rows = await supabaseGet(`document_analysis_status?select=notice_id,resource_id,document_name,sha256,extraction_status,logical_row_count,parser_version,completed_at&notice_id=eq.${encodeURIComponent(noticeId)}`);
-    return (rows || []).map(r => ({ noticeId:r.notice_id, resourceId:r.resource_id, name:r.document_name, serverStatus:r.extraction_status, serverSha:r.sha256, serverRows:r.logical_row_count, serverParser:r.parser_version, completedAt:r.completed_at }));
-  }
-
-  function mergeDocs(live, indexed) {
-    const map=new Map();
-    for(const d of indexed) if(d.resourceId) map.set(d.resourceId,{...d});
-    for(const d of live) if(d.resourceId) map.set(d.resourceId,{...(map.get(d.resourceId)||{}),...d});
-    return [...map.values()].sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));
-  }
-
-  async function syncLocal(summary, job) {
-    job.status='syncing'; render(); addActivity(`Resuming cloud sync: ${summary.name}`, 'running');
-    const begin = await edge('begin', { notice_id:summary.noticeId, resource_id:summary.resourceId, document_name:summary.name, sha256:summary.sha256, parser_version:summary.parserVersion, mime_type:summary.mimeType });
-    if (begin.cached) {
-      summary.synced=true; summary.syncedAt=new Date().toISOString(); await idbPut('sourceSummary',summary); job.status='cached'; addActivity(`${summary.name}: already stored in Supabase`, 'complete'); return;
-    }
-    const rows = await rowsForSource(summary.sourceKey);
-    for(let i=0;i<rows.length;i+=250) await edge('rows',{run_id:begin.run_id,rows:rows.slice(i,i+250)});
-    await edge('complete',{run_id:begin.run_id,status:summary.status,extraction_mode:summary.mode,page_count:summary.pageCount,logical_row_count:summary.rowCount,ocr_page_count:summary.ocrPageCount,error_text:summary.error||null});
-    summary.synced=true; summary.syncedAt=new Date().toISOString(); await idbPut('sourceSummary',summary); job.status=summary.status==='complete'?'synced':summary.status; addActivity(`${summary.name}: local evidence synced to Supabase`, summary.status==='complete'?'complete':'review');
-  }
-
-  function makeWorker() {
-    if (state.worker) return state.worker;
-    const worker = new Worker('contract-brain-browser-worker.js', { type:'module' });
-    worker.onmessage = onWorkerMessage;
-    worker.onerror = event => { addActivity(`Evidence worker error: ${event.message || 'unknown error'}`, 'failed'); if(state.current){state.current.status='failed';state.current=null;} render(); pump(); };
-    state.worker=worker; return worker;
-  }
-
-  function context(jobId) { return state.contexts.get(jobId); }
-
-  async function onWorkerMessage(event) {
-    const msg=event.data||{};
-    if(msg.type==='ready'){state.workerReady=true; state.engines.set('SHA-256 engine',{status:'ready',detail:'Web Crypto ready'}); render(); return;}
-    if(msg.type==='engine'){state.engines.set(msg.engine,{status:msg.status,detail:msg.detail});render();return;}
-    const ctx=context(msg.jobId); if(!ctx)return;
-    if(msg.type==='progress'){
-      ctx.job.stage=msg.stage; ctx.job.detail=msg.detail||''; ctx.job.progress=msg.progress; ctx.job.status='running'; state.current=ctx.job; render(); return;
-    }
-    if(msg.type==='source'){
-      ctx.source=msg.source; ctx.key=sourceKey(msg.source);
-      const summary={sourceKey:ctx.key,noticeId:msg.source.noticeId,resourceId:msg.source.resourceId,name:msg.source.name,sha256:msg.source.sha256,sizeBytes:msg.source.sizeBytes,mimeType:msg.source.mimeType,parserVersion:msg.source.parserVersion,status:'running',synced:false,startedAt:new Date().toISOString()};
-      ctx.summary=summary; await idbPut('sourceSummary',summary);
-      ctx.syncPromise=edge('begin',{notice_id:summary.noticeId,resource_id:summary.resourceId,document_name:summary.name,sha256:summary.sha256,parser_version:summary.parserVersion,mime_type:summary.mimeType}).catch(error=>({syncError:error}));
-      ctx.syncChain=Promise.resolve();
-      addActivity(`${summary.name}: SHA ${summary.sha256.slice(0,12)}…`, 'running'); return;
-    }
-    if(msg.type==='rows'){
-      if(!ctx.key)return;
-      await storeRows(ctx.key,msg.rows||[]);
-      ctx.syncChain=(ctx.syncChain||Promise.resolve()).then(async()=>{
-        const begin=await ctx.syncPromise; if(begin?.syncError||begin?.cached)return;
-        await edge('rows',{run_id:begin.run_id,rows:msg.rows||[]});
-      }).catch(error=>{ctx.syncError=error;});
-      return;
-    }
-    if(msg.type==='done'){
-      const result=msg.result||{}; const summary=ctx.summary;
-      if(summary){
-        Object.assign(summary,{status:result.status,mode:result.mode,pageCount:result.pageCount,rowCount:result.rowCount,ocrPageCount:result.ocrPageCount,error:result.error||'',completedAt:new Date().toISOString()});
-        try{
-          const begin=await ctx.syncPromise; await (ctx.syncChain||Promise.resolve());
-          if(begin?.syncError) throw begin.syncError;
-          if(begin?.cached) summary.synced=true;
-          else if(!ctx.syncError){await edge('complete',{run_id:begin.run_id,status:result.status,extraction_mode:result.mode,page_count:result.pageCount,logical_row_count:result.rowCount,ocr_page_count:result.ocrPageCount,error_text:result.error||null});summary.synced=true;}
-        }catch(error){ctx.syncError=error;summary.synced=false;addActivity(`${summary.name}: extracted locally; Supabase sync will retry later (${error.message})`,'review');}
-        await idbPut('sourceSummary',summary);
-      }
-      ctx.job.status=result.status==='complete'?(summary?.synced?'complete':'local'):result.status; ctx.job.stage='DONE';ctx.job.detail=`${Number(result.rowCount||0).toLocaleString()} rows${summary?.synced?' • saved to Supabase':' • saved locally'}`;
-      addActivity(`${ctx.job.name}: ${Number(result.rowCount||0).toLocaleString()} rows${summary?.synced?' saved':' extracted locally'}`,result.status==='complete'?'complete':'review');
-      state.contexts.delete(msg.jobId); state.current=null; render(); scheduleStatusRefresh(); pump(); return;
-    }
-    if(msg.type==='failed'){
-      ctx.job.status=msg.cancelled?'queued':'failed';ctx.job.stage=msg.cancelled?'PAUSED':'FAILED';ctx.job.detail=msg.error||'';addActivity(`${ctx.job.name}: ${msg.cancelled?'paused':msg.error}` ,msg.cancelled?'review':'failed');state.contexts.delete(msg.jobId);state.current=null;render();if(!state.paused)pump();
-    }
-  }
-
-  async function processJob(job) {
-    const local = (await summariesForResource(job.resourceId)).sort((a,b)=>String(b.completedAt||'').localeCompare(String(a.completedAt||'')))[0];
-    if(local && local.status==='complete' && !local.synced){
-      try{await syncLocal(local,job);render();scheduleStatusRefresh();return pump();}catch(error){job.status='local';job.detail=`Cloud sync pending: ${error.message}`;addActivity(`${job.name}: local cache retained; sync retry failed`,'review');render();return pump();}
-    }
-    if(local && local.status==='complete' && local.synced){job.status='local';job.detail=`${Number(local.rowCount||0).toLocaleString()} cached rows`;addActivity(`${job.name}: reused browser cache`,'complete');render();return pump();}
-    const jobId=`cb-${Date.now()}-${Math.random().toString(16).slice(2)}`; job.jobId=jobId; job.status='running'; job.stage='QUEUE'; job.detail='Starting browser worker'; state.current=job; state.contexts.set(jobId,{job}); render(); makeWorker().postMessage({type:'process',job:{jobId,noticeId:job.noticeId,resourceId:job.resourceId,name:job.name}});
-  }
-
-  async function pump() {
-    if(state.paused||state.current)return;
-    const next=state.jobs.find(j=>j.status==='queued'); if(!next){render();return;}
-    await processJob(next);
-  }
-
+  async function syncLocal(summary,job){job.status='syncing';render();addActivity(`Resuming cloud sync: ${summary.name}`,'running');const begin=await edge('begin',{notice_id:summary.noticeId,resource_id:summary.resourceId,document_name:summary.name,sha256:summary.sha256,parser_version:summary.parserVersion,mime_type:summary.mimeType});if(begin.cached){summary.synced=true;summary.syncedAt=new Date().toISOString();await idbPut('sourceSummary',summary);job.status='cached';addActivity(`${summary.name}: already stored in Supabase`,'complete');return;}const rows=await rowsForSource(summary.sourceKey);for(let i=0;i<rows.length;i+=250)await edge('rows',{run_id:begin.run_id,rows:rows.slice(i,i+250)});await edge('complete',{run_id:begin.run_id,status:summary.status,extraction_mode:summary.mode,page_count:summary.pageCount,logical_row_count:summary.rowCount,ocr_page_count:summary.ocrPageCount,error_text:summary.error||null});summary.synced=true;summary.syncedAt=new Date().toISOString();await idbPut('sourceSummary',summary);job.status=summary.status==='complete'?'synced':summary.status;addActivity(`${summary.name}: local evidence synced to Supabase`,summary.status==='complete'?'complete':'review');}
+  function makeWorker(){if(state.worker)return state.worker;const worker=new Worker('contract-brain-browser-worker.js',{type:'module'});worker.onmessage=onWorkerMessage;worker.onerror=event=>{addActivity(`Evidence worker error: ${event.message||'unknown error'}`,'failed');if(state.current){state.current.status='failed';state.current=null;}render();pump();};state.worker=worker;return worker;}
+  function context(jobId){return state.contexts.get(jobId);}
+  async function onWorkerMessage(event){const msg=event.data||{};if(msg.type==='ready'){state.workerReady=true;state.engines.set('SHA-256 engine',{status:'ready',detail:'Web Crypto ready'});render();return;}if(msg.type==='engine'){state.engines.set(msg.engine,{status:msg.status,detail:msg.detail});render();return;}const ctx=context(msg.jobId);if(!ctx)return;if(msg.type==='progress'){ctx.job.stage=msg.stage;ctx.job.detail=msg.detail||'';ctx.job.progress=msg.progress;ctx.job.status='running';state.current=ctx.job;render();return;}if(msg.type==='source'){ctx.source=msg.source;ctx.key=sourceKey(msg.source);const summary={sourceKey:ctx.key,noticeId:msg.source.noticeId,resourceId:msg.source.resourceId,name:msg.source.name,sha256:msg.source.sha256,sizeBytes:msg.source.sizeBytes,mimeType:msg.source.mimeType,parserVersion:msg.source.parserVersion,status:'running',synced:false,startedAt:new Date().toISOString()};ctx.summary=summary;await idbPut('sourceSummary',summary);ctx.syncPromise=edge('begin',{notice_id:summary.noticeId,resource_id:summary.resourceId,document_name:summary.name,sha256:summary.sha256,parser_version:summary.parserVersion,mime_type:summary.mimeType}).catch(error=>({syncError:error}));ctx.syncChain=Promise.resolve();addActivity(`${summary.name}: SHA ${summary.sha256.slice(0,12)}…`,'running');return;}if(msg.type==='rows'){if(!ctx.key)return;await storeRows(ctx.key,msg.rows||[]);ctx.syncChain=(ctx.syncChain||Promise.resolve()).then(async()=>{const begin=await ctx.syncPromise;if(begin?.syncError||begin?.cached)return;await edge('rows',{run_id:begin.run_id,rows:msg.rows||[]});}).catch(error=>{ctx.syncError=error;});return;}if(msg.type==='done'){const result=msg.result||{};const summary=ctx.summary;if(summary){Object.assign(summary,{status:result.status,mode:result.mode,pageCount:result.pageCount,rowCount:result.rowCount,ocrPageCount:result.ocrPageCount,error:result.error||'',completedAt:new Date().toISOString()});try{const begin=await ctx.syncPromise;await(ctx.syncChain||Promise.resolve());if(begin?.syncError)throw begin.syncError;if(begin?.cached)summary.synced=true;else if(!ctx.syncError){await edge('complete',{run_id:begin.run_id,status:result.status,extraction_mode:result.mode,page_count:result.pageCount,logical_row_count:result.rowCount,ocr_page_count:result.ocrPageCount,error_text:result.error||null});summary.synced=true;}}catch(error){ctx.syncError=error;summary.synced=false;addActivity(`${summary.name}: extracted locally; Supabase sync will retry later (${error.message})`,'review');}await idbPut('sourceSummary',summary);}ctx.job.status=result.status==='complete'?(summary?.synced?'complete':'local'):result.status;ctx.job.stage='DONE';ctx.job.detail=`${Number(result.rowCount||0).toLocaleString()} rows${summary?.synced?' • saved to Supabase':' • saved locally'}`;addActivity(`${ctx.job.name}: ${Number(result.rowCount||0).toLocaleString()} rows${summary?.synced?' saved':' extracted locally'}`,result.status==='complete'?'complete':'review');state.contexts.delete(msg.jobId);state.current=null;render();scheduleStatusRefresh();pump();return;}if(msg.type==='failed'){ctx.job.status=msg.cancelled?'queued':'failed';ctx.job.stage=msg.cancelled?'PAUSED':'FAILED';ctx.job.detail=msg.error||'';addActivity(`${ctx.job.name}: ${msg.cancelled?'paused':msg.error}`,msg.cancelled?'review':'failed');state.contexts.delete(msg.jobId);state.current=null;render();if(!state.paused)pump();}}
+  async function processJob(job){const local=(await summariesForResource(job.resourceId)).sort((a,b)=>String(b.completedAt||'').localeCompare(String(a.completedAt||'')))[0];if(local&&local.status==='complete'&&!local.synced){try{await syncLocal(local,job);render();scheduleStatusRefresh();return pump();}catch(error){job.status='local';job.detail=`Cloud sync pending: ${error.message}`;addActivity(`${job.name}: local cache retained; sync retry failed`,'review');render();return pump();}}if(local&&local.status==='complete'&&local.synced){job.status='local';job.detail=`${Number(local.rowCount||0).toLocaleString()} cached rows`;addActivity(`${job.name}: reused browser cache`,'complete');render();return pump();}const jobId=`cb-${Date.now()}-${Math.random().toString(16).slice(2)}`;job.jobId=jobId;job.status='running';job.stage='QUEUE';job.detail='Starting browser worker';state.current=job;state.contexts.set(jobId,{job});render();makeWorker().postMessage({type:'process',job:{jobId,noticeId:job.noticeId,resourceId:job.resourceId,name:job.name}});}
+  async function pump(){if(state.paused||state.current)return;const next=state.jobs.find(j=>j.status==='queued');if(!next){render();return;}await processJob(next);}
   function togglePause(){state.paused=!state.paused;if(state.paused&&state.current?.jobId)makeWorker().postMessage({type:'cancel',jobId:state.current.jobId});render();if(!state.paused)pump();}
-
-  async function scan(force=false) {
-    const noticeId=noticeFromUrl();
-    const notebook=document.getElementById('notebook');
-    if(!noticeId||!notebook||notebook.classList.contains('hidden'))return;
-    if(state.scanning)return;
-    if(!force&&state.lastScannedNotice===noticeId)return;
-    if(force&&state.current){addActivity('Rescan requested; current source will finish before the refreshed queue is applied.','review');return;}
-    state.scanning=true;state.noticeId=noticeId;state.jobs=[];state.current=null;render();
-    if(!state.autoOpened){state.autoOpened=true;togglePanel(true);}
-    addActivity('Checking public source inventory and saved evidence…','running');
-    try{
-      const [live,indexed]=await Promise.all([liveDocuments(noticeId),indexedDocuments(noticeId).catch(()=>[])]);
-      const docs=mergeDocs(live,indexed);
-      state.jobs=docs.map(d=>({noticeId,resourceId:d.resourceId,name:d.name||d.resourceId,status:d.serverStatus==='complete'?'cached':'queued',stage:d.serverStatus==='complete'?'CACHE':'QUEUE',detail:d.serverStatus==='complete'?`${Number(d.serverRows||0).toLocaleString()} stored rows`:'Waiting',serverStatus:d.serverStatus}));
-      state.lastScannedNotice=noticeId;
-      const stored=state.jobs.filter(j=>j.status==='cached').length;
-      addActivity(`${docs.length} source(s) found; ${stored} already stored; ${docs.length-stored} need local check/processing`, 'complete');
-      render();pump();
-    }catch(error){state.lastScannedNotice='';addActivity(`Source scan failed: ${error.message}`,'failed');}
-    finally{state.scanning=false;}
-  }
-
-  let scanTimer=null;
-  function scheduleScan(delay=250){clearTimeout(scanTimer);scanTimer=setTimeout(()=>scan(false),delay);}
-  function scheduleStatusRefresh(){window.dispatchEvent(new CustomEvent('contractbrain:evidence-updated'));}
-
-  function observeNotebook(){
-    const notebook=document.getElementById('notebook');
-    if(notebook)new MutationObserver(()=>scheduleScan()).observe(notebook,{attributes:true,attributeFilter:['class']});
-    const mount=document.getElementById('viewMount'); if(mount)new MutationObserver(()=>scheduleScan(400)).observe(mount,{childList:true});
-    document.getElementById('refreshTopBtn')?.addEventListener('click',()=>{state.lastScannedNotice='';setTimeout(()=>scan(true),900);});
-    document.getElementById('refreshSideBtn')?.addEventListener('click',()=>{state.lastScannedNotice='';setTimeout(()=>scan(true),900);});
-    window.addEventListener('popstate',()=>{state.lastScannedNotice='';scheduleScan();});
-  }
-
-  async function registerServiceWorker(){if(!('serviceWorker' in navigator))return;try{await navigator.serviceWorker.register('contract-brain-sw.js');}catch(error){addActivity(`Offline engine cache unavailable: ${error.message}`,'review');}}
-
-  async function init(){ensureUi();
-    if(!window.Worker||!window.indexedDB||!window.crypto?.subtle){addActivity('This browser is missing Worker, IndexedDB, or Web Crypto support. Browser-native extraction is unavailable.','failed');return;}
-    try{await openDb();state.engines.set('SHA-256 engine',{status:'ready',detail:'Web Crypto ready'});}catch(error){addActivity(`IndexedDB unavailable: ${error.message}`,'failed');return;}
-    addActivity('Browser evidence engine ready. Dependencies will load automatically only when needed.','complete');
-    makeWorker();observeNotebook();registerServiceWorker();scheduleScan(500);render();
-  }
-
+  async function scan(force=false){const noticeId=noticeFromUrl();const notebook=document.getElementById('notebook');if(!noticeId||!notebook||notebook.classList.contains('hidden'))return;if(state.scanning)return;if(!force&&state.lastScannedNotice===noticeId)return;if(force&&state.current){addActivity('Rescan requested; current source will finish before the refreshed queue is applied.','review');return;}state.scanning=true;state.noticeId=noticeId;state.jobs=[];state.current=null;render();if(!state.autoOpened){state.autoOpened=true;togglePanel(true);}addActivity('Checking public source inventory and saved evidence…','running');try{const[live,indexed]=await Promise.all([liveDocuments(noticeId),indexedDocuments(noticeId).catch(()=>[])]);const docs=mergeDocs(live,indexed);state.jobs=docs.map(d=>({noticeId,resourceId:d.resourceId,name:d.name||d.resourceId,status:d.serverStatus==='complete'?'cached':'queued',stage:d.serverStatus==='complete'?'CACHE':'QUEUE',detail:d.serverStatus==='complete'?`${Number(d.serverRows||0).toLocaleString()} stored rows`:'Waiting',serverStatus:d.serverStatus}));state.lastScannedNotice=noticeId;const stored=state.jobs.filter(j=>j.status==='cached').length;addActivity(`${docs.length} source(s) found; ${stored} already stored; ${docs.length-stored} need local check/processing`,'complete');render();pump();}catch(error){state.lastScannedNotice='';addActivity(`Source scan failed: ${error.message}`,'failed');}finally{state.scanning=false;}}
+  let scanTimer=null;function scheduleScan(delay=250){clearTimeout(scanTimer);scanTimer=setTimeout(()=>scan(false),delay);}function scheduleStatusRefresh(){window.dispatchEvent(new CustomEvent('contractbrain:evidence-updated'));}
+  function observeNotebook(){const notebook=document.getElementById('notebook');if(notebook)new MutationObserver(()=>scheduleScan()).observe(notebook,{attributes:true,attributeFilter:['class']});const mount=document.getElementById('viewMount');if(mount)new MutationObserver(()=>scheduleScan(400)).observe(mount,{childList:true});document.getElementById('refreshTopBtn')?.addEventListener('click',()=>{state.lastScannedNotice='';setTimeout(()=>scan(true),900);});document.getElementById('refreshSideBtn')?.addEventListener('click',()=>{state.lastScannedNotice='';setTimeout(()=>scan(true),900);});window.addEventListener('popstate',()=>{state.lastScannedNotice='';scheduleScan();});}
+  async function registerServiceWorker(){if(!('serviceWorker'in navigator))return;try{await navigator.serviceWorker.register('contract-brain-sw.js');}catch(error){addActivity(`Offline engine cache unavailable: ${error.message}`,'review');}}
+  async function init(){ensureUi();if(!window.Worker||!window.indexedDB||!window.crypto?.subtle){addActivity('This browser is missing Worker, IndexedDB, or Web Crypto support. Browser-native extraction is unavailable.','failed');return;}try{await openDb();state.engines.set('SHA-256 engine',{status:'ready',detail:'Web Crypto ready'});}catch(error){addActivity(`IndexedDB unavailable: ${error.message}`,'failed');return;}addActivity('Browser evidence engine ready. Dependencies will load automatically only when needed.','complete');makeWorker();observeNotebook();registerServiceWorker();scheduleScan(500);render();}
   window.ContractBrainBrowserPipeline={scan:()=>{state.lastScannedNotice='';scan(true);},pause:()=>{if(!state.paused)togglePause();},resume:()=>{if(state.paused)togglePause();},open:()=>togglePanel(true)};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
