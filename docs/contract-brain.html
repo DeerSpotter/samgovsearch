@@ -65,37 +65,54 @@
       <main id="content" class="content">
         <section id="searchWorkspace" class="search-workspace">
           <div class="search-page-header">
-            <div><div class="eyebrow">DISCOVER</div><h1>Federal Opportunities</h1><p>Run your existing no-key SAM.gov search here, automatically index the live results, then open any result directly as a Contract Notebook.</p></div>
-            <div class="search-page-actions"><span id="cbResultCount" class="cb-counter">0 results</span><span id="cbRequestCount" class="cb-counter">0 requests</span></div>
+            <div><div class="eyebrow">DISCOVER</div><h1>Federal Opportunities</h1><p>Your original SAM.gov search behavior, now feeding directly into Contract Brain notebooks.</p></div>
+            <div class="search-page-actions"><span id="cbResultCount" class="cb-counter">0 shown / 0 total</span><span id="cbRequestCount" class="cb-counter">0 requests</span></div>
           </div>
 
           <div class="cb-open-bar">
             <input id="cbOpenIdentifier" placeholder="Paste SAM.gov opportunity URL or notice ID">
             <button id="cbOpenIdentifierBtn" class="btn btn-secondary">Open Notebook</button>
-            <div class="cb-open-help">For attachments, use Opportunity Search and follow the parent opportunity result into the notebook.</div>
+            <div class="cb-open-help">Search results carry the parent opportunity ID into the notebook automatically.</div>
           </div>
 
           <section class="cb-search-panel">
             <div class="cb-search-grid">
-              <div class="cb-search-field"><label>Keywords / solicitation / NAICS / notice IDs</label><textarea id="cbTerms" placeholder="One search term per line
+              <div class="cb-search-field cb-terms-field"><label>Keywords / solicitation / NAICS / notice IDs</label><textarea id="cbTerms" placeholder="One search term per line
 Example: Patriot
 336414
 W31P4Q"></textarea><label class="cb-check"><input id="cbNaicsMode" type="checkbox" checked> Treat numeric-only terms as NAICS</label></div>
               <div class="cb-search-field"><label>Posted From</label><input id="cbPostedFrom" placeholder="MM/DD/YYYY"></div>
               <div class="cb-search-field"><label>Posted To</label><input id="cbPostedTo" placeholder="MM/DD/YYYY"><label class="cb-check"><input id="cbAllDates" type="checkbox"> Search all dates since 2018</label></div>
-              <div class="cb-search-field"><label>Status</label><select id="cbStatus"><option value="active" selected>Active</option><option value="">All / SAM default</option><option value="inactive">Inactive</option><option value="archived">Archived</option><option value="cancelled">Cancelled</option></select></div>
-              <div class="cb-search-field"><label>Procurement Type</label><select id="cbType"><option value="">Any</option><option value="o Solicitation">Solicitation</option><option value="k Combined Synopsis/Solicitation">Combined Synopsis/Solicitation</option><option value="r Sources Sought">Sources Sought</option><option value="p Presolicitation">Presolicitation</option><option value="s Special Notice">Special Notice</option><option value="a Award Notice">Award Notice</option></select></div>
-              <div class="cb-search-field"><label>Search Engine</label><input value="Live SAM.gov + auto-index" disabled><label>Max / Term</label><input id="cbMaxResults" type="number" min="1" max="500" value="100"></div>
+              <div class="cb-search-field"><label>Status</label><select id="cbStatus"><option value="active" selected>Active</option><option value="">All / SAM default</option><option value="inactive">Inactive</option><option value="archived">Archived</option><option value="cancelled">Cancelled</option><option value="deleted">Deleted</option></select></div>
+              <div class="cb-search-field"><label>Procurement Type</label><select id="cbType"><option value="">Any</option><option value="o Solicitation">Solicitation</option><option value="k Combined Synopsis/Solicitation">Combined Synopsis/Solicitation</option><option value="r Sources Sought">Sources Sought</option><option value="p Presolicitation">Presolicitation</option><option value="s Special Notice">Special Notice</option><option value="a Award Notice">Award Notice</option><option value="u Justification">Justification</option></select></div>
+              <div class="cb-search-field"><label>Search Mode</label><select id="cbSearchMode"><option>Auto</option><option>Title</option><option>Solicitation Number</option><option>Notice ID</option><option>Title + Solicitation Number</option></select></div>
+              <div class="cb-search-field"><label>Max / Term</label><input id="cbMaxResults" type="number" min="1" max="500" value="100"></div>
+              <div class="cb-search-field"><label>Page Size</label><input id="cbPageSize" type="number" min="1" max="100" value="100"></div>
+              <div class="cb-search-field"><label>Delay ms</label><input id="cbDelayMs" type="number" min="0" max="10000" value="250"></div>
             </div>
-            <div class="cb-search-buttons"><button id="cbSearchBtn" class="btn btn-accent">⌕ Search Opportunities</button><button id="cbStopBtn" class="btn btn-secondary" disabled>Stop</button><button id="cbClearBtn" class="btn btn-secondary">Clear</button><span id="cbSearchStatus" class="cb-search-status">Ready.</span></div>
+
+            <div class="cb-search-subpanels">
+              <fieldset class="cb-mini-panel"><legend>Attachment Enrichment</legend>
+                <label class="cb-check"><input id="cbEnrichResources" type="checkbox" checked> Load attachment names and sizes</label>
+                <label class="cb-check"><input id="cbRequireAttachments" type="checkbox"> Only show opportunities with attachments</label>
+                <div class="cb-inline-fields"><label>Minimum Count<input id="cbMinCount" type="number" min="0" value="0"></label><label>Minimum Total MB<input id="cbMinMb" type="number" min="0" step="0.001" value="0"></label></div>
+              </fieldset>
+              <fieldset class="cb-mini-panel"><legend>Local Result Filters</legend>
+                <label>Show results containing<input id="cbShowFilter" placeholder="title, solicitation, agency, attachment..."></label>
+                <label>Hide results containing<input id="cbHideFilter" placeholder="amendment, cancelled, award"></label>
+                <label>Attachment name filter<input id="cbAttachmentFilter" placeholder="drawing, *.xlsx, *CDRL*"></label>
+              </fieldset>
+            </div>
+
+            <div class="cb-search-buttons"><button id="cbSearchBtn" class="btn btn-accent">⌕ Search Opportunities</button><button id="cbStopBtn" class="btn btn-secondary" disabled>Stop</button><button id="cbExportBtn" class="btn btn-secondary" disabled>Export CSV</button><button id="cbClearBtn" class="btn btn-secondary">Clear</button><span id="cbSearchStatus" class="cb-search-status">Ready.</span></div>
           </section>
 
           <div class="cb-results-layout">
             <section class="card cb-results-card">
-              <div class="card-head"><h3>Opportunity Results</h3><span class="muted">Click a row to inspect it. Open Notebook follows the result into Contract Brain.</span></div>
-              <div class="table-wrap cb-results-table-wrap"><table class="data-table cb-results-table"><thead><tr><th>Opportunity</th><th>Solicitation</th><th>Agency</th><th>Posted</th><th>Type</th><th>NAICS</th><th>PSC</th><th>Source</th><th>Action</th></tr></thead><tbody id="cbResultsBody"></tbody></table></div>
+              <div class="card-head"><h3>Opportunity Results</h3><span class="muted">Click headers to sort. Drag header edges to resize columns. Widths are remembered in this browser.</span></div>
+              <div class="table-wrap cb-results-table-wrap"><table id="cbResultsTable" class="data-table cb-results-table"><thead><tr id="cbResultsHead"></tr></thead><tbody id="cbResultsBody"></tbody></table></div>
             </section>
-            <aside id="cbDetailPanel" class="card cb-detail-panel"><div class="card-body empty-mini">Select a result to inspect it before opening the notebook.</div></aside>
+            <aside id="cbDetailPanel" class="card cb-detail-panel"><div class="card-body empty-mini">Select a result to inspect its details and attachments before opening the notebook.</div></aside>
           </div>
         </section>
 
