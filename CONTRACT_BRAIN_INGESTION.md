@@ -2,38 +2,92 @@
 
 Contract Brain now has a persistent public-evidence memory layer based on the extraction architecture proven in the CONOPS source-coverage work.
 
-## Processing model
+The **primary user path is browser-native and automatic**. The Python extractor remains as a development/fallback path, not a normal-user dependency.
+
+## Normal browser workflow
 
 ```text
-SAM.gov resourceId
-      |
-      v
-download public bytes
-      |
-      v
-SHA-256
-      |
-      +--> same hash + same parser already complete? --> reuse Supabase evidence
-      |
-      v
-native extraction
-      |
-      +--> PDF has native text --> PyMuPDF blocks with sort=True
-      |
-      +--> PDF has zero native text --> bounded 200 DPI grayscale Tesseract OCR
-      |
-      +--> DOCX / PPTX / XLSX / text / bounded one-level ZIP adapters
-      |
-      v
-normalized logical source rows
-      |
-      v
-Supabase evidence memory
+Open Contract Notebook
+        |
+        v
+check live SAM.gov source inventory
+        |
+        v
+check Supabase evidence memory
+        |
+        +--> already complete? --> reuse stored evidence immediately
+        |
+        v
+queue missing source in browser
+        |
+        v
+Web Worker downloads public attachment
+        |
+        v
+SHA-256 with Web Crypto
+        |
+        v
+native browser extraction
+        |
+        +--> PDF native text --> PDF.js text items + page geometry
+        |
+        +--> zero-native-text PDF --> lazy Tesseract.js OCR fallback
+        |
+        +--> DOCX / PPTX / XLSX / ZIP --> JSZip + deterministic OOXML extraction
+        |
+        +--> text-family source --> browser text decoder
+        |
+        v
+IndexedDB local evidence cache
+        |
+        v
+Supabase Edge Function verifies source SHA-256
+        |
+        v
+normalized logical source rows -> Supabase
 ```
 
-The extraction layer does **not** automatically turn text into verified systems, interfaces, requirements, or CONOPS claims. It preserves source evidence first so later modules can make reviewable, source-linked relationships.
+There is no `pip install` step for normal browser use. Browser document engines are loaded only when required and are cached by `contract-brain-sw.js` for later sessions.
 
-## Supabase memory objects
+OCR is **not** downloaded or executed for a PDF that already exposes native text.
+
+## Automatic background behavior
+
+Opening a Contract Notebook automatically starts the evidence queue for sources that are not already complete in Supabase.
+
+The **Evidence** control in the top bar opens a live Background Evidence panel showing:
+
+- total sources
+- ready sources
+- queued/running sources
+- review/failure count
+- current document
+- current pipeline stage
+- PDF engine status
+- Office/ZIP engine status
+- OCR engine status
+- recent activity
+
+The extraction itself runs in `contract-brain-browser-worker.js`, so the main Contract Brain UI remains usable while source processing continues.
+
+If the browser is closed before processing finishes, completed local source rows remain in IndexedDB. The next time the notebook opens, Contract Brain attempts to sync those local rows before re-extracting the source.
+
+## Browser dependency model
+
+Normal users do not install parser packages.
+
+Contract Brain loads these browser engines on demand:
+
+- PDF.js for native PDF text and geometry
+- JSZip for ZIP and OOXML containers
+- Tesseract.js only for zero-native-text PDF fallback
+- Web Crypto for SHA-256
+- IndexedDB for local processing state and resumable evidence
+- Web Workers for non-blocking extraction
+
+The service worker caches application and dependency assets after they are requested.
+
+## Supabase persistence
 
 The migration `supabase/migrations/202608080112_contract_brain_evidence_memory.sql` adds:
 
@@ -49,7 +103,7 @@ The migration `supabase/migrations/202608080112_contract_brain_evidence_memory.s
   - status
   - extraction mode
   - pages
-  - row count
+  - logical row count
   - OCR page count
   - timestamps and error state
 - `source_rows`
@@ -57,97 +111,47 @@ The migration `supabase/migrations/202608080112_contract_brain_evidence_memory.s
   - exact locator
   - page number
   - exact extracted text
-  - PDF block geometry when available
+  - PDF geometry when available
 - `document_analysis_status`
-  - convenient read-only status view used by the Contract Brain Sources screen
+  - read-only status view used by the Contract Brain Sources screen
 
-Public browser clients have read-only access to these public-evidence objects. Persistent writes require the Supabase service role key and must never be placed in browser JavaScript or committed to Git.
+The deployed Supabase Edge Function `contract-brain-browser-ingest` performs persistence. It uses the Supabase service role only inside the Edge Function environment. The browser never receives that credential.
 
-## Install the parser
+Before accepting a new source-binary hash, the Edge Function verifies that the `resourceId` belongs to the indexed notice and independently downloads the public attachment to confirm the SHA-256 supplied by the browser.
 
-From the repository root:
-
-```bat
-py -3 -m pip install -r requirements-contract-brain-ingest.txt
-```
-
-Optional OCR fallback additionally requires the Tesseract executable to be installed and available on `PATH`.
-
-Tesseract is not used for PDFs that already contain a native text layer.
-
-## Configure persistent writes locally
-
-Set the service role key only in the local terminal that will perform ingestion:
-
-### Command Prompt
-
-```bat
-set SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
-```
-
-### PowerShell
-
-```powershell
-$env:SUPABASE_SERVICE_ROLE_KEY = "your_service_role_key_here"
-```
-
-Do not paste the service role key into the Contract Brain browser UI and do not commit it to the repository.
-
-## Process every indexed attachment for a notice
-
-```bat
-py scripts\contract_brain_ingest.py --notice-id NOTICE_ID
-```
-
-Example progress:
-
-```text
-START         6 attachment(s)
-SOURCE        1/6 Statement of Work.pdf
-DOWNLOAD      Statement of Work.pdf
-HASH          sha256=4b7d...
-EXTRACT       PyMuPDF native text blocks; sort=True; OCR not invoked
-STORE         stored rows 1-300 of 812
-STORE         stored rows 301-600 of 812
-STORE         stored rows 601-812 of 812
-SOURCE        2/6 Attachment B.xlsx
-...
-DONE          processed 6 attachment(s)
-```
+Browser-extracted source rows remain deterministic evidence records. They are not automatically promoted into verified systems, interfaces, requirements, or CONOPS claims.
 
 ## Analyze-once behavior
 
-On a later run, if the same SAM.gov `resourceId` downloads to the same SHA-256 and the same parser version already completed successfully, the parser reports:
+A completed source is identified by:
 
 ```text
-CACHE         unchanged binary already analyzed; reusing Supabase evidence
+SAM.gov resourceId
++
+SHA-256
++
+parser version
 ```
 
-It does not extract or store the document again.
+If Supabase already contains a successful extraction, Contract Brain does not parse that source again.
 
-If SAM.gov serves changed bytes for the same `resourceId`, the new SHA-256 creates a new source-binary version and that version is analyzed independently.
+If the same source was completed locally but cloud synchronization was interrupted, Contract Brain reuses the IndexedDB rows and retries synchronization rather than rereading the source.
 
-If the parser logic changes, increment `PARSER_VERSION` in `contract_brain_pipeline/extractor.py`. Existing evidence remains available while the new parser version can create a new extraction run.
+If SAM.gov serves changed bytes, a different SHA-256 produces a new source-binary version.
 
-## Process one indexed attachment
+## Browser parser version
 
-```bat
-py scripts\contract_brain_ingest.py --resource-id RESOURCE_ID
+The browser worker currently identifies itself as:
+
+```text
+contract-brain-browser/0.1.0
 ```
 
-## Force a parser rerun
-
-```bat
-py scripts\contract_brain_ingest.py --notice-id NOTICE_ID --force
-```
-
-This is intended for development/debugging. Normal Contract Brain operation should rely on hash + parser-version reuse.
+Parser upgrades should increment this version so old extracted evidence remains traceable while a newer extraction can be generated intentionally.
 
 ## Source screen
 
-After a source has been analyzed, open the notebook and select **Sources**.
-
-The table reads `document_analysis_status` and shows:
+The Contract Brain **Sources** screen reads `document_analysis_status` and shows:
 
 - Complete
 - Running
@@ -156,10 +160,18 @@ The table reads `document_analysis_status` and shows:
 - Not processed
 - normalized row count
 
-This makes the persistent memory state visible without rerunning extraction.
+After a browser extraction is synchronized, the Sources screen refreshes from Supabase without requiring a page reload.
 
-## Next integration step
+## Python fallback / development extractor
 
-The current deterministic ingestion CLI is intentionally separate from browser JavaScript so privileged Supabase credentials are not exposed.
+The original deterministic Python extractor remains available for development, regression comparison, and server-side fallback:
 
-The next integration should add a trusted local or hosted job service that lets the Contract Brain UI request processing and stream progress while keeping persistence credentials server-side.
+```bat
+py -3 -m pip install -r requirements-contract-brain-ingest.txt
+set SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
+py scripts\contract_brain_ingest.py --notice-id NOTICE_ID
+```
+
+Its extraction philosophy remains the same: SHA first, native extraction first, OCR only when needed, exact locators, normalized evidence, and parser-version reuse.
+
+The service role key must never be placed in browser JavaScript or committed to Git.
