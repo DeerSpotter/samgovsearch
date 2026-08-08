@@ -11,6 +11,7 @@
 
   const state = {
     noticeId: '',
+    lastScannedNotice: '',
     worker: null,
     workerReady: false,
     paused: false,
@@ -26,7 +27,6 @@
   };
 
   const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   const now = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   const noticeFromUrl = () => new URLSearchParams(location.search).get('noticeId') || '';
   const sourceKey = source => `${source.resourceId}:${source.sha256}:${source.parserVersion || PARSER_VERSION}`;
@@ -37,7 +37,7 @@
     style.id = 'cbBrowserPipelineStyles';
     style.textContent = `
       .cb-evidence-button{position:relative}.cb-evidence-button.busy::after{content:'';position:absolute;right:5px;top:5px;width:6px;height:6px;border-radius:50%;background:var(--cyan);box-shadow:0 0 10px var(--cyan);animation:cbPulse 1.2s infinite}@keyframes cbPulse{50%{opacity:.3}}
-      .cb-pipeline-panel{position:fixed;right:18px;bottom:18px;width:min(430px,calc(100vw - 36px));max-height:min(680px,calc(100vh - 105px));z-index:80;background:#071522;border:1px solid #23445d;border-radius:10px;box-shadow:0 22px 60px rgba(0,0,0,.45);overflow:hidden;display:flex;flex-direction:column}.cb-pipeline-panel.hidden{display:none}.cb-pipeline-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:13px 14px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#0b2134,#081827)}.cb-pipeline-head h3{margin:0;font-size:14px}.cb-pipeline-head p{margin:3px 0 0;color:var(--muted);font-size:10px;line-height:1.35}.cb-pipeline-close{border:0;background:transparent;color:#8ea7bb;font-size:18px;cursor:pointer}.cb-pipeline-body{padding:12px 14px;overflow:auto}.cb-pipeline-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.cb-pipeline-stat{border:1px solid var(--line);background:#091927;border-radius:7px;padding:8px}.cb-pipeline-stat span{display:block;color:var(--muted);font-size:8px;text-transform:uppercase;letter-spacing:.07em}.cb-pipeline-stat strong{font-size:16px}.cb-pipeline-progress{height:6px;border-radius:99px;background:#10283b;overflow:hidden;margin:10px 0}.cb-pipeline-progress>i{display:block;height:100%;width:0;background:linear-gradient(90deg,#17c8de,#43e6f6);transition:width .25s ease}.cb-pipeline-current{padding:9px;border:1px solid #1d3c54;background:#081725;border-radius:7px;margin-bottom:10px}.cb-pipeline-current strong{display:block;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cb-pipeline-current small{display:block;color:#86a1b6;font-size:9px;margin-top:3px}.cb-engine-list,.cb-activity-list{display:grid;gap:6px}.cb-pipeline-section-title{font-size:9px;color:#6d879e;text-transform:uppercase;letter-spacing:.1em;margin:11px 0 6px}.cb-engine,.cb-activity{display:grid;grid-template-columns:12px minmax(0,1fr) auto;gap:7px;align-items:start;font-size:10px;padding:6px 0;border-bottom:1px solid rgba(68,96,120,.18)}.cb-engine:last-child,.cb-activity:last-child{border-bottom:0}.cb-engine-dot{width:7px;height:7px;margin-top:3px;border-radius:50%;background:#50677c}.cb-engine-dot.ready,.cb-engine-dot.complete{background:#42d48c}.cb-engine-dot.loading,.cb-engine-dot.running{background:#29d9ed;box-shadow:0 0 7px rgba(41,217,237,.4)}.cb-engine-dot.failed{background:#ff6b6b}.cb-engine-dot.review{background:#e7b553}.cb-engine span,.cb-activity span{min-width:0}.cb-engine small,.cb-activity small{color:#61798f;font-size:8px;white-space:nowrap}.cb-pipeline-actions{display:flex;gap:7px;margin-top:11px}.cb-pipeline-actions .btn{font-size:9px;padding:7px 9px}.cb-browser-note{margin-top:9px;color:#698398;font-size:9px;line-height:1.4}.cb-local-chip{display:inline-flex;align-items:center;padding:2px 5px;border-radius:5px;border:1px solid #245d6f;color:#62dced;font-size:8px;margin-left:5px}
+      .cb-pipeline-panel{position:fixed;right:18px;bottom:18px;width:min(430px,calc(100vw - 36px));max-height:min(680px,calc(100vh - 105px));z-index:80;background:#071522;border:1px solid #23445d;border-radius:10px;box-shadow:0 22px 60px rgba(0,0,0,.45);overflow:hidden;display:flex;flex-direction:column}.cb-pipeline-panel.hidden{display:none}.cb-pipeline-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:13px 14px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#0b2134,#081827)}.cb-pipeline-head h3{margin:0;font-size:14px}.cb-pipeline-head p{margin:3px 0 0;color:var(--muted);font-size:10px;line-height:1.35}.cb-pipeline-close{border:0;background:transparent;color:#8ea7bb;font-size:18px;cursor:pointer}.cb-pipeline-body{padding:12px 14px;overflow:auto}.cb-pipeline-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.cb-pipeline-stat{border:1px solid var(--line);background:#091927;border-radius:7px;padding:8px}.cb-pipeline-stat span{display:block;color:var(--muted);font-size:8px;text-transform:uppercase;letter-spacing:.07em}.cb-pipeline-stat strong{font-size:16px}.cb-pipeline-progress{height:6px;border-radius:99px;background:#10283b;overflow:hidden;margin:10px 0}.cb-pipeline-progress>i{display:block;height:100%;width:0;background:linear-gradient(90deg,#17c8de,#43e6f6);transition:width .25s ease}.cb-pipeline-current{padding:9px;border:1px solid #1d3c54;background:#081725;border-radius:7px;margin-bottom:10px}.cb-pipeline-current strong{display:block;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cb-pipeline-current small{display:block;color:#86a1b6;font-size:9px;margin-top:3px}.cb-engine-list,.cb-activity-list{display:grid;gap:6px}.cb-pipeline-section-title{font-size:9px;color:#6d879e;text-transform:uppercase;letter-spacing:.1em;margin:11px 0 6px}.cb-engine,.cb-activity{display:grid;grid-template-columns:12px minmax(0,1fr) auto;gap:7px;align-items:start;font-size:10px;padding:6px 0;border-bottom:1px solid rgba(68,96,120,.18)}.cb-engine:last-child,.cb-activity:last-child{border-bottom:0}.cb-engine-dot{width:7px;height:7px;margin-top:3px;border-radius:50%;background:#50677c}.cb-engine-dot.ready,.cb-engine-dot.complete{background:#42d48c}.cb-engine-dot.loading,.cb-engine-dot.running{background:#29d9ed;box-shadow:0 0 7px rgba(41,217,237,.4)}.cb-engine-dot.failed{background:#ff6b6b}.cb-engine-dot.review{background:#e7b553}.cb-engine span,.cb-activity span{min-width:0}.cb-engine small,.cb-activity small{color:#61798f;font-size:8px;white-space:nowrap}.cb-pipeline-actions{display:flex;gap:7px;margin-top:11px}.cb-pipeline-actions .btn{font-size:9px;padding:7px 9px}.cb-browser-note{margin-top:9px;color:#698398;font-size:9px;line-height:1.4}
       @media(max-width:700px){.cb-pipeline-panel{right:8px;bottom:8px;width:calc(100vw - 16px)}.cb-pipeline-summary{grid-template-columns:1fr 1fr}}
     `;
     document.head.appendChild(style);
@@ -45,6 +45,8 @@
 
   function ensureUi() {
     injectStyles();
+    const footerMode = document.querySelector('.sidebar-footer span');
+    if (footerMode && /manual refresh mode/i.test(footerMode.textContent || '')) footerMode.textContent = 'Automatic evidence mode';
     if (!document.getElementById('cbEvidenceButton')) {
       const actions = document.querySelector('.top-actions');
       if (actions) {
@@ -54,6 +56,18 @@
         button.textContent = 'Evidence idle';
         button.addEventListener('click', () => togglePanel());
         actions.insertBefore(button, actions.querySelector('#refreshTopBtn'));
+      }
+    }
+    if (!document.getElementById('cbEvidenceSideBtn')) {
+      const workflowLabel = [...document.querySelectorAll('.nav-label')].find(x => x.textContent.trim() === 'WORKFLOW');
+      const section = workflowLabel?.closest('.nav-section');
+      if (section) {
+        const button = document.createElement('button');
+        button.id = 'cbEvidenceSideBtn';
+        button.className = 'nav-item';
+        button.innerHTML = '◌ <span>Background Evidence</span><b id="cbEvidenceSideCount">0</b>';
+        button.addEventListener('click', () => togglePanel(true));
+        section.insertBefore(button, section.querySelector('#refreshSideBtn'));
       }
     }
     if (!document.getElementById('cbPipelinePanel')) {
@@ -108,7 +122,7 @@
     ensureUiOnce();
     const t = totals();
     const set = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = String(value); };
-    set('cbPipeTotal', t.total); set('cbPipeReady', t.ready); set('cbPipeQueued', t.queued); set('cbPipeIssues', t.issues);
+    set('cbPipeTotal', t.total); set('cbPipeReady', t.ready); set('cbPipeQueued', t.queued); set('cbPipeIssues', t.issues); set('cbEvidenceSideCount', t.queued || t.issues || 0);
     const bar = document.getElementById('cbPipeBar'); if (bar) bar.style.width = `${t.total ? Math.round((t.ready + t.issues) * 100 / t.total) : 0}%`;
     const button = document.getElementById('cbEvidenceButton');
     if (button) {
@@ -163,12 +177,6 @@
     const db = await openDb();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(store, 'readwrite'); tx.objectStore(store).put(value); tx.oncomplete = resolve; tx.onerror = () => reject(tx.error);
-    });
-  }
-  async function idbGet(store, key) {
-    const db = await openDb();
-    return new Promise((resolve, reject) => {
-      const request = db.transaction(store, 'readonly').objectStore(store).get(key); request.onsuccess = () => resolve(request.result || null); request.onerror = () => reject(request.error);
     });
   }
   async function summariesForResource(resourceId) {
@@ -325,7 +333,8 @@
     const notebook=document.getElementById('notebook');
     if(!noticeId||!notebook||notebook.classList.contains('hidden'))return;
     if(state.scanning)return;
-    if(!force&&state.noticeId===noticeId&&state.jobs.length)return;
+    if(!force&&state.lastScannedNotice===noticeId)return;
+    if(force&&state.current){addActivity('Rescan requested; current source will finish before the refreshed queue is applied.','review');return;}
     state.scanning=true;state.noticeId=noticeId;state.jobs=[];state.current=null;render();
     if(!state.autoOpened){state.autoOpened=true;togglePanel(true);}
     addActivity('Checking public source inventory and saved evidence…','running');
@@ -333,10 +342,11 @@
       const [live,indexed]=await Promise.all([liveDocuments(noticeId),indexedDocuments(noticeId).catch(()=>[])]);
       const docs=mergeDocs(live,indexed);
       state.jobs=docs.map(d=>({noticeId,resourceId:d.resourceId,name:d.name||d.resourceId,status:d.serverStatus==='complete'?'cached':'queued',stage:d.serverStatus==='complete'?'CACHE':'QUEUE',detail:d.serverStatus==='complete'?`${Number(d.serverRows||0).toLocaleString()} stored rows`:'Waiting',serverStatus:d.serverStatus}));
+      state.lastScannedNotice=noticeId;
       const stored=state.jobs.filter(j=>j.status==='cached').length;
       addActivity(`${docs.length} source(s) found; ${stored} already stored; ${docs.length-stored} need local check/processing`, 'complete');
       render();pump();
-    }catch(error){addActivity(`Source scan failed: ${error.message}`,'failed');}
+    }catch(error){state.lastScannedNotice='';addActivity(`Source scan failed: ${error.message}`,'failed');}
     finally{state.scanning=false;}
   }
 
@@ -348,9 +358,9 @@
     const notebook=document.getElementById('notebook');
     if(notebook)new MutationObserver(()=>scheduleScan()).observe(notebook,{attributes:true,attributeFilter:['class']});
     const mount=document.getElementById('viewMount'); if(mount)new MutationObserver(()=>scheduleScan(400)).observe(mount,{childList:true});
-    document.getElementById('refreshTopBtn')?.addEventListener('click',()=>setTimeout(()=>scan(true),900));
-    document.getElementById('refreshSideBtn')?.addEventListener('click',()=>setTimeout(()=>scan(true),900));
-    window.addEventListener('popstate',()=>scheduleScan());
+    document.getElementById('refreshTopBtn')?.addEventListener('click',()=>{state.lastScannedNotice='';setTimeout(()=>scan(true),900);});
+    document.getElementById('refreshSideBtn')?.addEventListener('click',()=>{state.lastScannedNotice='';setTimeout(()=>scan(true),900);});
+    window.addEventListener('popstate',()=>{state.lastScannedNotice='';scheduleScan();});
   }
 
   async function registerServiceWorker(){if(!('serviceWorker' in navigator))return;try{await navigator.serviceWorker.register('contract-brain-sw.js');}catch(error){addActivity(`Offline engine cache unavailable: ${error.message}`,'review');}}
@@ -358,9 +368,10 @@
   async function init(){ensureUi();
     if(!window.Worker||!window.indexedDB||!window.crypto?.subtle){addActivity('This browser is missing Worker, IndexedDB, or Web Crypto support. Browser-native extraction is unavailable.','failed');return;}
     try{await openDb();state.engines.set('SHA-256 engine',{status:'ready',detail:'Web Crypto ready'});}catch(error){addActivity(`IndexedDB unavailable: ${error.message}`,'failed');return;}
+    addActivity('Browser evidence engine ready. Dependencies will load automatically only when needed.','complete');
     makeWorker();observeNotebook();registerServiceWorker();scheduleScan(500);render();
   }
 
-  window.ContractBrainBrowserPipeline={scan:()=>scan(true),pause:()=>{if(!state.paused)togglePause();},resume:()=>{if(state.paused)togglePause();},open:()=>togglePanel(true)};
+  window.ContractBrainBrowserPipeline={scan:()=>{state.lastScannedNotice='';scan(true);},pause:()=>{if(!state.paused)togglePause();},resume:()=>{if(state.paused)togglePause();},open:()=>togglePanel(true)};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
