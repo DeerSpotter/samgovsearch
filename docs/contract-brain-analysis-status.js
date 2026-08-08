@@ -6,7 +6,7 @@
   let timer = null;
   let serial = 0;
 
-  const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
 
   function noticeId() {
     return new URLSearchParams(location.search).get('noticeId') || '';
@@ -91,6 +91,9 @@
       summary.textContent = `${analyzed}/${bodyRows.length} analyzed`;
       const target = titleRow.lastElementChild || titleRow;
       target.appendChild(summary);
+    } else if (titleRow) {
+      const summary = titleRow.querySelector('[data-cb-memory-summary]');
+      if (summary) summary.textContent = `${analyzed}/${bodyRows.length} analyzed`;
     }
   }
 
@@ -125,5 +128,15 @@
   const mount = document.getElementById('viewMount');
   if (mount) new MutationObserver(schedule).observe(mount, { childList: true, subtree: true });
   window.addEventListener('popstate', schedule);
+  window.addEventListener('contractbrain:evidence-updated', schedule);
   schedule();
+})();
+
+(() => {
+  if (document.querySelector('script[data-cb-browser-pipeline]')) return;
+  const script = document.createElement('script');
+  script.src = 'contract-brain-browser-pipeline.js';
+  script.defer = true;
+  script.dataset.cbBrowserPipeline = '1';
+  document.head.appendChild(script);
 })();
