@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Contract Brain — SAM.gov Contract Notebook</title>
+  <meta name="description" content="Living contract notebook for public SAM.gov opportunities.">
+  <link rel="stylesheet" href="contract-brain.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand"><div class="brand-mark">◉</div><div><strong>Contract Brain</strong><span>SAM.gov intelligence</span></div></div>
+      <div class="sidebar-scroll">
+        <section class="nav-section">
+          <div class="nav-label">CONTRACT NOTEBOOK</div>
+          <button class="nav-item active" data-view="overview">⌂ <span>Overview</span></button>
+          <button class="nav-item" data-view="sources">▤ <span>Sources</span><b id="navSourceCount">0</b></button>
+          <button class="nav-item" data-view="mission">◎ <span>Mission / CONOPS</span><i>Next</i></button>
+          <button class="nav-item" data-view="requirements">☑ <span>Requirements</span><i>Next</i></button>
+          <button class="nav-item" data-view="components">◇ <span>Components</span><i>Next</i></button>
+          <button class="nav-item" data-view="interfaces">⌘ <span>Interfaces</span><i>Next</i></button>
+          <button class="nav-item" data-view="nsn">◇ <span>NSN / Parts</span><i>Later</i></button>
+          <button class="nav-item" data-view="manufacturers">♜ <span>Manufacturers</span><i>Later</i></button>
+          <button class="nav-item" data-view="analogs">⛓ <span>Analogs</span><i>Next</i></button>
+          <button class="nav-item" data-view="gaps">△ <span>Gaps & Risks</span><i>Next</i></button>
+          <button class="nav-item" data-view="clarifications">? <span>Clarifications</span><i>Next</i></button>
+          <button class="nav-item" data-view="changes">↻ <span>Changes</span><b id="navChangeCount">0</b></button>
+          <button class="nav-item" data-view="reports">▥ <span>Reports</span><i>Later</i></button>
+        </section>
+        <section class="nav-section">
+          <div class="nav-label">WORKFLOW</div>
+          <button class="nav-item" id="refreshSideBtn">↻ <span>Manual Refresh</span></button>
+          <button class="nav-item" data-view="saved">☆ <span>Saved Notebooks</span><b id="savedCount">0</b></button>
+          <a class="nav-item link" href="index.html">⌕ <span>SAM.gov Search</span></a>
+          <a class="nav-item link" href="documents.html">▤ <span>Document Search</span></a>
+        </section>
+        <section class="nav-section">
+          <div class="nav-label">SETTINGS</div>
+          <button class="nav-item" data-view="adapters">⌁ <span>Source Adapters</span></button>
+          <button class="nav-item" data-view="security">♢ <span>Public Data Boundary</span></button>
+        </section>
+      </div>
+      <div class="sidebar-footer">
+        <div class="avatar">CB</div><div><strong>Public workspace</strong><span>Manual refresh mode</span></div>
+      </div>
+    </aside>
+
+    <div class="workspace">
+      <header class="topbar">
+        <div class="global-search-wrap">
+          <span>⌕</span><input id="globalSearch" autocomplete="off" placeholder="Search indexed contracts by title, solicitation, or notice ID...">
+          <div id="searchResults" class="search-results hidden"></div>
+        </div>
+        <div class="top-actions">
+          <span id="lastRefreshTop" class="last-refresh">Not refreshed</span><span id="liveDot" class="live-dot"></span>
+          <button id="refreshTopBtn" class="btn btn-accent">↻ Refresh Now</button>
+          <a class="icon-btn" href="index.html" title="SAM.gov Search">⌕</a>
+        </div>
+      </header>
+
+      <main id="content" class="content">
+        <section id="emptyState" class="empty-state">
+          <div class="empty-icon">◉</div>
+          <h1>Open a SAM.gov contract notebook</h1>
+          <p>Search above or paste a SAM.gov notice ID. Contract Brain stores a local snapshot and only checks for changes when you press Refresh.</p>
+          <div class="open-row"><input id="noticeInput" placeholder="Notice ID"><button id="openNoticeBtn" class="btn btn-accent">Open Notebook</button></div>
+          <div class="empty-links"><a href="index.html">Search SAM.gov opportunities</a><a href="documents.html">Search indexed documents</a></div>
+        </section>
+
+        <section id="notebook" class="hidden">
+          <div class="notebook-header">
+            <div>
+              <div class="eyebrow">CONTRACT NOTEBOOK</div>
+              <h1 id="contractTitle">Opportunity</h1>
+              <div class="contract-meta"><button id="noticeIdButton" class="id-chip"></button><span id="agencyChip" class="meta-chip"></span><span id="typeChip" class="meta-chip"></span><span id="deadlineChip" class="meta-chip"></span></div>
+            </div>
+            <div class="header-actions"><button id="saveNotebookBtn" class="btn btn-secondary">☆ Save</button><a id="samLink" class="btn btn-secondary" target="_blank" rel="noopener">Open SAM.gov ↗</a></div>
+          </div>
+
+          <div id="viewMount"></div>
+        </section>
+      </main>
+      <div id="toast" class="toast hidden"></div>
+    </div>
+  </div>
+  <script src="contract-brain.js"></script>
+</body>
+</html>
