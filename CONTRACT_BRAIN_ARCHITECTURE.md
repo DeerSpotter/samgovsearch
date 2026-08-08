@@ -1,217 +1,197 @@
 # Contract Brain Architecture
 
-Contract Brain is the next evolution of `samgovsearch`: a persistent, public-data contract notebook that can grow from SAM.gov discovery into source-grounded mission, requirements, component, interface, analog, supplier, and change intelligence.
+Contract Brain turns SAM.gov discovery into a living public-contract notebook whose source evidence can be searched, traced, related, and incrementally refreshed.
 
-## Product rule
-
-The notebook is a maintained knowledge object, not a one-time AI report.
-
-The initial implementation intentionally uses **manual refresh**. Nothing polls SAM.gov in the background. A user chooses when to check for changes, and unchanged evidence is not reprocessed.
-
-## Current foundation
-
-The first Contract Brain slice is implemented under `docs/contract-brain.html` with supporting CSS and JavaScript.
-
-It currently provides:
-
-- Contract Brain dark UI shell with fixed left navigation.
-- Open an opportunity by SAM.gov notice ID.
-- Search the existing public Supabase opportunity index.
-- Load notice details from the existing Cloudflare Worker.
-- Load attachment metadata from `/resources/{noticeId}`.
-- Treat SAM.gov `resourceId` as the stable public attachment identifier.
-- Fall back to the existing Supabase document index when live resource metadata is unavailable.
-- Save notebooks locally in the browser.
-- Save a baseline snapshot locally in the browser.
-- Manual refresh only.
-- Diff notice metadata and attachment resource IDs against the prior snapshot.
-- Classify changes as new, changed, or removed.
-- Preserve local change history per notice.
-- Direct public attachment download through the existing Worker `/download/{resourceId}` route.
-- Explicit public-data boundary.
-
-No LLM call is required by the foundation and no background monitoring is performed.
-
-## Target layers
+## User flow
 
 ```text
-Contract Brain UI
-    |
-Intelligence Engine
-    |
-Knowledge / Evidence Layer
-    |
-Document Processing Layer
-    |
-Source Adapters
+Opportunity Search
+      |
+      v
+Select opportunity
+      |
+      v
+Contract Notebook
+      |
+      +--> Overview
+      +--> Sources
+      +--> Technical Ontology
+      +--> Mission / CONOPS
+      +--> Requirements
+      +--> Components
+      +--> Interfaces
+      +--> Analogs
+      +--> NSN / Parts
+      +--> Manufacturers
+      +--> Gaps / Risks
+      +--> Clarifications
+      +--> Changes
+      +--> Reports
 ```
 
-### 1. Source adapters
+## Browser-native evidence architecture
 
-Normalize public evidence from external sources without coupling source-specific APIs to the UI.
-
-Initial:
-
-- SAM.gov opportunity search
-- SAM.gov notice details
-- SAM.gov public attachment resources
-- Supabase indexed opportunity/document metadata
-
-Planned:
-
-- USAspending award history
-- DLA/public NSN and catalog sources where legally/publicly accessible
-- Public specifications and standards metadata
-- Manufacturer public catalogs
-
-### 2. Document processing
-
-Future document jobs should produce versioned evidence rather than raw filenames only.
-
-Planned pipeline:
+Normal Contract Brain operation does not require Python, pip, or a locally installed parser service.
 
 ```text
-download
-  -> hash/version
-  -> unpack archives
-  -> parse
-  -> structure/chunk
-  -> extract entities/claims
-  -> resolve entities
-  -> index
+Contract Brain browser
+      |
+      +--> SAM.gov search / source inventory
+      |
+      +--> Supabase evidence status
+      |
+      +--> Web Worker background queue
+                |
+                +--> Web Crypto SHA-256
+                +--> PDF.js native text + geometry
+                +--> Tesseract.js OCR only when native PDF text is empty
+                +--> JSZip OOXML extraction for DOCX/PPTX/XLSX/ZIP
+                +--> text-family extraction
+                |
+                v
+             IndexedDB
+                |
+                v
+      Supabase Edge Function
+                |
+                +--> independently verifies indexed resourceId + SHA-256
+                +--> persists source binary / run / source rows
+                v
+            Supabase memory
 ```
 
-Supported targets should include PDF, DOCX, XLSX, PPTX, CSV, TXT/XML, ZIP, images, and useful drawing/package metadata.
+The UI stays responsive while extraction runs because document work is performed inside a Web Worker.
 
-### 3. Knowledge and evidence layer
+## Dependency behavior
 
-Core objects:
+Browser engines are loaded lazily and cached:
 
-- opportunity
-- document
-- document version
-- requirement
-- mission function
-- system
-- subsystem
-- component
-- interface
-- specification / standard
-- part / NSN
-- manufacturer / organization
-- contract / award
-- claim
-- evidence
-- relationship
-- gap / conflict
-- reviewer decision
+- PDF.js loads only when a PDF requires extraction.
+- JSZip loads only for Office Open XML or ZIP sources.
+- Tesseract.js loads only when a PDF has no native text layer.
+- Web Crypto and IndexedDB are browser-native.
+- `contract-brain-sw.js` caches application and parser assets after first use.
 
-Every extracted claim or relationship should point back to evidence and retain state such as:
+There is no normal-user dependency installation step.
 
-- proposed
-- supported
-- verified
-- conflicting
-- rejected
-- superseded
-- unknown
+## Persistent evidence model
 
-### 4. Intelligence engine
+### source_binaries
 
-Planned capabilities:
-
-- Hybrid lexical + semantic + graph retrieval.
-- Requirements traceability.
-- Mission / CONOPS decomposition.
-- Technical entity resolution.
-- Interface intelligence.
-- Cross-contract analog scoring.
-- Gap and conflict detection.
-- Supplier/manufacturer capability scoring.
-- Clarification-question generation.
-- Cited AI Q&A only after retrieval/provenance is in place.
-
-Scores must remain explainable. A single percentage should never hide its contributing dimensions or evidence.
-
-### 5. Contract Brain UI
-
-The left navigation is the persistent product shell.
-
-Foundation/live:
-
-- Overview
-- Sources
-- Changes
-- Saved Notebooks
-- Source Adapters
-- Public Data Boundary
-
-Next:
-
-- Mission / CONOPS
-- Requirements
-- Components
-- Interfaces
-- Analogs
-- Gaps & Risks
-- Clarifications
-
-Later:
-
-- NSN / Parts
-- Manufacturers
-- Reports / capture package
-- Collaboration / team workspaces
-
-## Refresh model
-
-Contract Brain uses a staged refresh model to control SAM.gov, storage, embedding, and AI usage.
-
-### Quick/manual refresh
-
-Cheap comparison only:
-
-- notice metadata
-- resource IDs
-- filenames
-- sizes
-- dates
-
-### Process changes
-
-Only when new/changed source evidence is found:
-
-- download new/changed files
-- parse new versions
-- update evidence and entities
-- update search index
-
-### Rebuild intelligence
-
-Explicit expensive operation for parser/model/schema upgrades or troubleshooting.
-
-Unchanged documents should never be repeatedly reprocessed.
-
-## Security boundary
-
-The public demonstrator is **PUBLIC data only**.
-
-Do not ingest CUI, classified information, source-selection information, export-controlled nonpublic data, proprietary customer material, or other protected content into the public deployment.
-
-Future private deployments need explicit classification, authorization, storage, model-routing, audit, and retention controls before additional data classes are accepted.
-
-## Next implementation milestone
-
-Build server-side document versioning and parsing so a Contract Notebook can turn attachment metadata into traceable source content. The first useful vertical slice should be:
+One row per unique SAM.gov source binary:
 
 ```text
-Open Contract
-  -> Public attachments
-  -> Version/hash
-  -> Parse PDF/DOCX/XLSX/ZIP
-  -> Requirements + entities
-  -> Evidence provenance
-  -> Mission/CONOPS view
-  -> Manual refresh
-  -> Process only changed evidence
+resourceId + SHA-256
 ```
+
+Stores notice ID, resource ID, name, SHA-256, byte size, MIME type, source URL, and first/last seen times.
+
+### extraction_runs
+
+One processing record per source binary and parser version.
+
+Tracks parser version, status, extraction mode, page count, logical row count, OCR page count, timestamps, and error/review state.
+
+### source_rows
+
+Normalized exact evidence rows storing the stable source row ID, source binary, extraction run, page number, exact locator, row type, exact extracted text, deterministic sort order, and geometry where available.
+
+Full source text is stored once here rather than repeated on every future relationship.
+
+## Analyze-once rule
+
+Contract Brain uses:
+
+```text
+resourceId
++
+SHA-256
++
+parser version
+```
+
+as the reusable extraction identity.
+
+If that identity is already complete in Supabase, opening the notebook does not parse it again.
+
+If local extraction completed but synchronization was interrupted, IndexedDB preserves the source rows and the next browser session retries synchronization instead of rereading the source.
+
+If the bytes change, the SHA-256 changes and a new source version is processed.
+
+## Automatic background queue
+
+Opening a notebook automatically:
+
+1. loads the live SAM.gov public source inventory;
+2. checks Supabase `document_analysis_status`;
+3. marks completed sources as cached;
+4. queues only missing sources;
+5. processes them one at a time in the browser worker;
+6. persists local evidence to IndexedDB as it is produced;
+7. streams source rows to the Supabase ingestion function;
+8. refreshes the Sources status view when synchronization completes.
+
+The top-bar **Evidence** control opens a live activity panel so background processing is visible rather than a black box.
+
+## Source integrity boundary
+
+The browser computes SHA-256 over the exact bytes it analyzes.
+
+Before a new binary is accepted into persistent memory, the Supabase Edge Function verifies that the `resourceId` exists in the indexed notice, the browser-supplied notice ID matches the indexed document, the public source can be downloaded, and the independently downloaded bytes produce the same SHA-256.
+
+The service-role credential exists only inside the Edge Function environment and is never shipped to browser JavaScript.
+
+## Evidence versus knowledge
+
+Deterministic extraction does not automatically make an engineering claim true.
+
+```text
+source bytes
+   -> exact rows
+   -> candidate entities / requirements / relationships
+   -> evidence links
+   -> review / confidence state
+   -> Contract Brain knowledge graph
+```
+
+Technical entities, requirements, interfaces, component relationships, analogs, and CONOPS relationships must keep backlinks to the exact evidence rows that support them.
+
+## Technical Ontology
+
+The current ontology is an early deterministic layer. It can use the notice record and source inventory immediately, then progressively improve as normalized `source_rows` become available.
+
+Future ontology stages should read persisted evidence rather than rereading source files.
+
+## Manual Refresh versus automatic processing
+
+These are different operations.
+
+**Automatic evidence processing** starts when a notebook opens, processes sources already known to that notebook, does not continuously poll SAM.gov, and makes no LLM calls.
+
+**Manual Refresh** explicitly checks SAM.gov for notice/source changes, compares the new source inventory with the previous snapshot, and adds only new or changed evidence to the background processing queue.
+
+This keeps SAM.gov request usage bounded while still making document processing automatic.
+
+## Future semantic layers
+
+Once the normalized evidence corpus is populated, the next layers should be built in this order:
+
+```text
+source_rows
+    |
+    +--> requirement candidates
+    +--> entities / systems / components
+    +--> interfaces / standards / identifiers
+    +--> claims + evidence provenance
+    +--> mission / CONOPS graph
+    +--> analog contract relationships
+    +--> NSN / part / manufacturer enrichment
+    +--> gaps / clarifications
+    +--> reports and cited AI assistance
+```
+
+Any future LLM stage should operate on retrieved evidence rows and cited relationships rather than repeatedly sending whole attachments for analysis.
+
+## Python fallback
+
+`contract_brain_pipeline/extractor.py` and `scripts/contract_brain_ingest.py` remain available for development, regression comparison, or future server-side processing. They are no longer the required normal-user path.
