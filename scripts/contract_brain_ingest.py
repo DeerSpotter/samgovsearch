@@ -7,7 +7,7 @@ Examples:
   set SUPABASE_SERVICE_ROLE_KEY=...
   py scripts/contract_brain_ingest.py --notice-id <NOTICE_ID>
 
-The script deliberately separates source extraction from semantic promotion.  It
+The script deliberately separates source extraction from semantic promotion. It
 stores exact source rows; CONOPS, requirements, components, and relationships are
 later derived from those rows with their provenance intact.
 """
@@ -23,7 +23,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from dataclasses import asdict
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -42,6 +42,10 @@ from contract_brain_pipeline.extractor import (  # noqa: E402
 WORKER = os.environ.get("CONTRACT_BRAIN_WORKER_URL", "https://samgovsearch.spotterdeer.workers.dev").rstrip("/")
 SUPABASE_URL = os.environ.get("CONTRACT_BRAIN_SUPABASE_URL", "https://igkjmfjmwatgtubfjcok.supabase.co").rstrip("/")
 SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+
+
+def utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 
 def progress(stage: str, message: str, **data: Any) -> None:
@@ -126,7 +130,13 @@ def upsert_binary(doc: dict[str, Any], payload: bytes, headers: dict[str, str], 
     resource_id = str(doc["resource_id"])
     existing = find_binary(resource_id, digest)
     if existing:
-        rest_request("PATCH", "source_binaries", query=[("id", f"eq.{existing['id']}")], body={"last_seen_at": "now()"}, prefer="return=minimal")
+        rest_request(
+            "PATCH",
+            "source_binaries",
+            query=[("id", f"eq.{existing['id']}")],
+            body={"last_seen_at": utc_now()},
+            prefer="return=minimal",
+        )
         return existing
     rows = rest_request(
         "POST",
@@ -165,7 +175,7 @@ def update_run(run_id: str, result: ExtractionResult) -> None:
             "page_count": result.page_count,
             "logical_row_count": len(result.rows),
             "ocr_page_count": result.ocr_page_count,
-            "completed_at": "now()",
+            "completed_at": utc_now(),
             "error_text": result.error or None,
         },
         prefer="return=minimal",
@@ -195,7 +205,7 @@ def insert_rows(binary_id: int, run_id: str, digest: str, result: ExtractionResu
             "source_rows",
             query=[("on_conflict", "source_row_id")],
             body=batch,
-            prefer="resolution=ignore-duplicates,return=minimal",
+            prefer="resolution=merge-duplicates,return=minimal",
         )
         progress("STORE", f"stored rows {start + 1}-{start + len(batch)} of {len(payload_rows)}")
 
@@ -205,7 +215,7 @@ def mark_document_hash(resource_id: str, digest: str) -> None:
         "PATCH",
         "documents",
         query=[("resource_id", f"eq.{resource_id}")],
-        body={"document_hash": digest, "last_checked_at": "now()"},
+        body={"document_hash": digest, "last_checked_at": utc_now()},
         prefer="return=minimal",
     )
 
