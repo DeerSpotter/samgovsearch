@@ -122,15 +122,16 @@ function emitRows(jobId, rows, memberPath = '') {
   return normalized.length;
 }
 
-async function extractPdf(job, buffer) {
+async function extractPdf(job, buffer, memberPath = '') {
   const lib = await ensurePdf(job.jobId);
   send('progress', { jobId: job.jobId, stage: 'EXTRACT', status: 'running', detail: 'Reading native PDF text', progress: 0 });
   const task = lib.getDocument({ data: new Uint8Array(buffer) });
   const doc = await task.promise;
+  const pageCount = doc.numPages;
   let rowCount = 0;
   let order = 0;
   const nativeRows = [];
-  for (let pageNo = 1; pageNo <= doc.numPages; pageNo++) {
+  for (let pageNo = 1; pageNo <= pageCount; pageNo++) {
     if (cancelledJob(job.jobId)) throw new Error('cancelled');
     const page = await doc.getPage(pageNo);
     const textContent = await page.getTextContent();
@@ -149,14 +150,14 @@ async function extractPdf(job, buffer) {
         geometry: t.length >= 6 ? { x: Number(t[4]) || 0, y: Number(t[5]) || 0, width: Number(item.width) || 0, height: Number(item.height) || 0 } : null,
         sort_index: order,
       });
-      if (nativeRows.length >= ROW_BATCH) { rowCount += emitRows(job.jobId, nativeRows.splice(0)); }
+      if (nativeRows.length >= ROW_BATCH) rowCount += emitRows(job.jobId, nativeRows.splice(0), memberPath);
     }
-    send('progress', { jobId: job.jobId, stage: 'EXTRACT', status: 'running', detail: `Native text page ${pageNo}/${doc.numPages}`, progress: pct(pageNo, doc.numPages) });
+    send('progress', { jobId: job.jobId, stage: 'EXTRACT', status: 'running', detail: `Native text page ${pageNo}/${pageCount}`, progress: pct(pageNo, pageCount) });
   }
-  if (nativeRows.length) rowCount += emitRows(job.jobId, nativeRows);
+  if (nativeRows.length) rowCount += emitRows(job.jobId, nativeRows, memberPath);
   if (rowCount > 0) {
     try { await doc.destroy(); } catch {}
-    return { status: 'complete', mode: 'PDF.js native text items; OCR not invoked', pageCount: doc.numPages, ocrPageCount: 0, rowCount };
+    return { status: 'complete', mode: 'PDF.js native text items; OCR not invoked', pageCount, ocrPageCount: 0, rowCount };
   }
 
   send('progress', { jobId: job.jobId, stage: 'OCR', status: 'running', detail: 'No native text found; starting bounded OCR fallback', progress: 0 });
@@ -165,7 +166,7 @@ async function extractPdf(job, buffer) {
   let ocrRows = 0;
   order = 0;
   try {
-    for (let pageNo = 1; pageNo <= doc.numPages; pageNo++) {
+    for (let pageNo = 1; pageNo <= pageCount; pageNo++) {
       if (cancelledJob(job.jobId)) throw new Error('cancelled');
       const page = await doc.getPage(pageNo);
       const viewport = page.getViewport({ scale: 200 / 72 });
@@ -179,18 +180,19 @@ async function extractPdf(job, buffer) {
       for (const raw of String(result?.data?.text || '').split(/\r?\n/)) {
         const value = clean(raw);
         if (!value) continue;
-        lineNo += 1; order += 1;
+        lineNo += 1;
+        order += 1;
         rows.push({ locator: `page ${pageNo} OCR line ${lineNo}`, exact_text: value, row_type: 'pdf_ocr', page_number: pageNo, geometry: null, sort_index: order });
       }
-      ocrRows += emitRows(job.jobId, rows);
-      send('progress', { jobId: job.jobId, stage: 'OCR', status: 'running', detail: `OCR page ${pageNo}/${doc.numPages}`, progress: pct(pageNo, doc.numPages) });
+      ocrRows += emitRows(job.jobId, rows, memberPath);
+      send('progress', { jobId: job.jobId, stage: 'OCR', status: 'running', detail: `OCR page ${pageNo}/${pageCount}`, progress: pct(pageNo, pageCount) });
     }
   } finally {
     try { await ocrWorker.terminate(); } catch {}
     try { await doc.destroy(); } catch {}
   }
-  if (!ocrRows) return { status: 'review_required', mode: 'PDF.js returned zero native text and browser OCR returned zero text', pageCount: doc.numPages, ocrPageCount: doc.numPages, rowCount: 0 };
-  return { status: 'complete', mode: 'PDF.js zero-native-text gate -> 200 DPI browser render -> Tesseract.js eng OCR', pageCount: doc.numPages, ocrPageCount: doc.numPages, rowCount: ocrRows };
+  if (!ocrRows) return { status: 'review_required', mode: 'PDF.js returned zero native text and browser OCR returned zero text', pageCount, ocrPageCount: pageCount, rowCount: 0 };
+  return { status: 'complete', mode: 'PDF.js zero-native-text gate -> 200 DPI browser render -> Tesseract.js eng OCR', pageCount, ocrPageCount: pageCount, rowCount: ocrRows };
 }
 
 async function extractDocx(job, buffer, memberPath = '') {
@@ -249,7 +251,8 @@ async function extractXlsx(job, buffer, memberPath = '') {
       const rowNum = Number(rowMatch[1].match(/\br="(\d+)"/)?.[1] || 0) || rows.length + 1;
       const parts = [];
       for (const cell of rowMatch[2].matchAll(/<c([^>]*)>([\s\S]*?)<\/c>/gi)) {
-        const attrs = cell[1]; const inner = cell[2];
+        const attrs = cell[1];
+        const inner = cell[2];
         const ref = attrs.match(/\br="([A-Z]+\d+)"/i)?.[1] || `C${parts.length + 1}`;
         const type = attrs.match(/\bt="([^"]+)"/)?.[1] || '';
         let value = '';
@@ -274,7 +277,8 @@ function extractText(job, buffer, suffix, memberPath = '') {
   let order = 0;
   const rows = [];
   for (const [i, raw] of value.split(/\r?\n/).entries()) {
-    const line = clean(raw); if (!line) continue;
+    const line = clean(raw);
+    if (!line) continue;
     rows.push({ locator: `line ${i + 1}`, exact_text: line, row_type: `text_${suffix || 'plain'}`, page_number: null, geometry: null, sort_index: ++order });
   }
   const count = emitRows(job.jobId, rows, memberPath);
@@ -302,7 +306,7 @@ async function extractZip(job, buffer) {
 
 async function extractByType(job, name, buffer, memberPath = '', allowArchive = true) {
   const suffix = ext(name);
-  if (suffix === 'pdf') return extractPdf(job, buffer);
+  if (suffix === 'pdf') return extractPdf(job, buffer, memberPath);
   if (suffix === 'docx') return extractDocx(job, buffer, memberPath);
   if (suffix === 'pptx') return extractPptx(job, buffer, memberPath);
   if (suffix === 'xlsx') return extractXlsx(job, buffer, memberPath);
